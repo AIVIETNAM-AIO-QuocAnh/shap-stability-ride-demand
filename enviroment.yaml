@@ -1,0 +1,25 @@
+name: shap-stability-ride-demand
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10.9
+  - numpy=2.2.6
+  - pandas=2.2.3
+  - scikit-learn=1.7.2
+  - scipy=1.14.0
+  - pyyaml=6.0.3
+  - tqdm=4.67.3
+  - matplotlib=3.10.1
+  - seaborn=0.13.2
+  - pillow=11.1.0
+  - pyarrow=19.0.1          # Đọc ghi định dạng Parquet cho dataset lớn của NYC TLC
+  - fastparquet=2024.11.0    # Hỗ trợ engine parquet dự phòng
+  - joblib=1.4.2             # Lưu và nạp model artifacts (.joblib)
+  - pip
+  - pip:
+      - lightgbm==4.6.0      
+      - xgboost==2.1.4       
+      - optuna==4.2.1      
+      - shap==0.47.0         # TreeExplainer tính SHAP importance và stability
+      - holidays==0.65       # Tạo feature lịch nghỉ lễ US (is_holiday)
