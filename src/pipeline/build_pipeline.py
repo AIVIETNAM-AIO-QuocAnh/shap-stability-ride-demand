@@ -12,6 +12,8 @@ class BuildPipeline:
         print(f"Running build pipeline for variant {self.variant} on fold {fold}")
 
         X_train, y_train, X_test, y_test = load_data(fold, self.variant)
+
+        print(X_train.head(), y_train.head(), X_test.head(), y_test.head())
         
         for model_key in model_keys:
             train_test = TrainTest([X_train, y_train], [X_test, y_test], model_key)
