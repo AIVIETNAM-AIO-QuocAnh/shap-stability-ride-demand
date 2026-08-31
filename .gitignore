@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---- Data (heavy) ----
+data/raw/*
+data/processed/monthly_agg/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
