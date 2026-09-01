@@ -47,3 +47,13 @@ def load_data(fold: str, variant: str):
     X_evaluation, y_evaluation = evaluation[feature_cols], evaluation["demand"]
 
     return X_train, y_train, X_evaluation, y_evaluation
+
+def calculate_metrics(metric, y_true, y_pred):
+    if metric == "wape":
+        return ((y_true - y_pred) / y_true).abs().mean()
+    elif metric == "rmse":
+        return ((y_true - y_pred) ** 2).mean() ** 0.5
+    elif metric == "mae":
+        return (y_true - y_pred).abs().mean()
+    else:
+        raise ValueError(f"Unsupported metric: {metric}")
