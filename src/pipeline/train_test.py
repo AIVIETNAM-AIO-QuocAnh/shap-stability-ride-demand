@@ -15,25 +15,7 @@ class TrainTest :
 
     def run(self, fold):
         print(self.model_key)
-
-
-        #baseline models for testing 
-        params = cfg["models"][self.model_key]
-        if(self.model_key == "xgboost"):
-            self.model = XGBRegressor(**params)
-        else : 
-            self.model = LGBMRegressor(**params)
-
-        if fold == "hpo":
-            run_hpo = RunHpo(self.X_train, self.y_train, self.X_test, self.y_test, self.model_key)
-            best_params = run_hpo.run()
-            if(self.model_key == "xgboost"):
-                self.model = XGBRegressor(**best_params)
-            else :
-                self.model = LGBMRegressor(**best_params)
-        else :
-            self.model.fit(self.X_train, self.y_train)
-            self.y_pred = self.model.predict(self.X_test)
+        
             
 
     def log(self, model_name, variant, fold): #đưa các kết quả từ run() ra .csv/.txt
