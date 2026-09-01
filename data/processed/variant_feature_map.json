@@ -1,5 +1,6 @@
 {
   "base_features": [
+    "PULocationID",
     "hour",
     "dayofweek",
     "is_holiday",

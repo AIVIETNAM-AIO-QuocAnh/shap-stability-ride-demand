@@ -3,6 +3,7 @@ from src.pipeline.build_pipeline import BuildPipeline
 ### Run HPO  -> finetuned models on variant_A
 baseline_experiment = BuildPipeline(variant="A")
 baseline_experiment.run(fold = "hpo")
+baseline_experiment.run_shap(fold = "hpo")
 ### Run variant_A
 # variant_A = BuildPipeline(variant="A")
 # variant_A.run(fold = "fold1")
