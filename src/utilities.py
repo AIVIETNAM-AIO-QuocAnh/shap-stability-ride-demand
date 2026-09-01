@@ -24,9 +24,12 @@ def resolve_path(cfg: dict, key: str) -> Path:
 
     return PROJECT_ROOT / paths[key]
 
+
 def load_data(fold: str, variant: str):
     with open(PROJECT_ROOT / "data/processed/variant_feature_map.json") as file:
         variant_map = json.load(file)
+    with open(PROJECT_ROOT / "data/processed/frozen/top50_zones_frozen.json") as f:
+        zone_ids = json.load(f)["zone_ids"]
 
     feature_cols = (
         variant_map["base_features"]
@@ -43,8 +46,23 @@ def load_data(fold: str, variant: str):
         fold_dir / evaluation_file, parse_dates=["target_datetime"]
     )
 
-    X_train, y_train = train[feature_cols], train["demand"]
-    X_evaluation, y_evaluation = evaluation[feature_cols], evaluation["demand"]
+    def add_zone_onehot(df, zone_ids):
+        df = df.copy()
+        df["PULocationID"] = pd.Categorical(df["PULocationID"], categories=zone_ids)
+        dummies = pd.get_dummies(df["PULocationID"], prefix="zone")
+        dummies = dummies.reindex(
+            columns=[f"zone_{zone_id}" for zone_id in zone_ids],
+            fill_value=0,
+        )
+        return pd.concat([df, dummies], axis=1), dummies.columns.tolist()
+
+    train, zone_cols = add_zone_onehot(train, zone_ids)
+    evaluation, _ = add_zone_onehot(evaluation, zone_ids)
+
+    X_train = train[feature_cols + zone_cols].copy()
+    y_train = train["demand"]
+    X_evaluation = evaluation[feature_cols + zone_cols].copy()
+    y_evaluation = evaluation["demand"]
 
     return X_train, y_train, X_evaluation, y_evaluation
 
