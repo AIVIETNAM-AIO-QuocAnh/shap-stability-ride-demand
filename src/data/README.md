@@ -14,12 +14,15 @@ data/raw ──aggregate──▶ data/processed/monthly_agg - freeze zone──
                     data/processed/feature_table.csv
                     data/processed/variant_feature_map.json
                                     │
-                                    ▼
-                       QA/QC lag alignment + split fold
-                                    │
-                                    ▼
-                              data/folds/
-                      (hpo, fold1-4, final_test)
+                        ┌───────────┴───────────┐
+                        ▼                        ▼
+              QA + correlation summary    QA/QC lag alignment
+              (correlation_analysis.py)      + split fold
+                        │                        │
+                        ▼                        ▼
+          correlation_by_zone.csv,          data/folds/
+          correlation_summary.csv,      (hpo, fold1-4, final_test)
+          data_dictionary.md
 ```
 
 Nguyên tắc:
@@ -40,6 +43,7 @@ Chạy từ **root project**, theo đúng thứ tự:
 ```bash
 python src/data/freeze_zones.py
 python src/data/build_panel.py
+python src/data/correlation_analysis.py
 python src/data/split_folds.py
 ```
 
@@ -68,7 +72,20 @@ Output: `data/processed/monthly_agg/agg_2025-01.csv ... agg_2025-12.csv`,
 
 Output: `data/processed/feature_table.csv`, `data/processed/variant_feature_map.json`.
 
-### Bước 4: `split_folds.py`
+### Bước 4: `correlation_analysis.py`
+
+- **QA**: kiểm tra missing value, duplicate `(zone, giờ)`, tỷ lệ zero-demand
+  (cảnh báo zone nào >95% giờ = 0).
+- Tính **Pearson correlation** giữa 3 weekly lag (`lag_168`, `lag_336`,
+  `lag_504`), riêng cho từng zone, trên giai đoạn cố định 22/01–31/07/2025
+  (mục 2.2 proposal). Tổng hợp mean ± SD trên 50 zone cho mỗi cặp.
+- Sinh **data dictionary** mô tả toàn bộ cột của `feature_table.csv` và 2
+  file correlation, để bàn giao cho role Pipeline/Model.
+
+Output: `data/processed/correlation_by_zone.csv`,
+`data/processed/correlation_summary.csv`, `data/processed/data_dictionary.md`.
+
+### Bước 5: `split_folds.py`
 
 - **QA/QC bắt buộc**: tự tra ngược lag trong chính feature table
   để xác minh không lệch alignment.
@@ -87,6 +104,9 @@ data/
 │   ├── monthly_agg/                # 12 file aggregate thưa theo tháng
 │   ├── feature_table.csv           # bảng đầy đủ trước khi split
 │   ├── variant_feature_map.json    # định nghĩa cột feature theo Variant A/B/C
+│   ├── correlation_by_zone.csv     # Pearson correlation weekly lag, theo từng zone
+│   ├── correlation_summary.csv     # mean ± SD correlation trên 50 zone
+│   ├── data_dictionary.md          # mô tả cột feature_table + correlation output
 │   └── frozen/
 │       └── top50_zones_frozen.json # danh sách 50 zone cố định
 └── folds/
@@ -110,6 +130,8 @@ data/
 | `hour`, `dayofweek`, `is_holiday` | feature nền |
 | `lag_1`, `lag_24`, `lag_168`, `lag_336`, `lag_504`, `median_lag_3w` | feature lag, chọn theo Variant |
 
+Mô tả đầy đủ + ràng buộc đã QA: xem `data/processed/data_dictionary.md`.
+
 ### Chọn feature theo Variant
 
 ```python
@@ -124,6 +146,20 @@ variant = "A"  # hoặc "B", "C"
 weekly = variant_map["variants"][variant]["weekly_features"]
 
 feature_cols = base + weekly
+```
+
+### One-hot `PULocationID`
+
+```python
+import pandas as pd
+
+with open("data/processed/frozen/top50_zones_frozen.json") as f:
+    zone_ids = json.load(f)["zone_ids"]
+
+def add_zone_onehot(df, zone_ids):
+    df["PULocationID"] = pd.Categorical(df["PULocationID"], categories=zone_ids)
+    dummies = pd.get_dummies(df["PULocationID"], prefix="zone")
+    return pd.concat([df, dummies], axis=1), dummies.columns.tolist()
 ```
 
 ### Train theo fold
