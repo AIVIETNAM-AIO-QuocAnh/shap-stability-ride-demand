@@ -1,9 +1,15 @@
 from src.pipeline.build_pipeline import BuildPipeline
+### Run baseline to test the pipeline
+
+# baseline_experiment = BuildPipeline(variant="A")
+# baseline_experiment.run_baseline(fold = "fold1")
 
 ### Run HPO  -> finetuned models on variant_A
+# finetune = BuildPipeline(variant="A")
+# finetune.run_hpo()
 baseline_experiment = BuildPipeline(variant="A")
-baseline_experiment.run(fold = "hpo")
-baseline_experiment.run_shap(fold = "hpo")
+baseline_experiment.run_fold(fold = "fold1")
+# baseline_experiment.run_shap(fold = "hpo")
 ### Run variant_A
 # variant_A = BuildPipeline(variant="A")
 # variant_A.run(fold = "fold1")

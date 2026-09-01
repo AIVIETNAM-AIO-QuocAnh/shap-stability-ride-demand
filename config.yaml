@@ -46,7 +46,8 @@ splits:
 
 # [PATHS] 
 paths:
-  results: "results/"
+  results: "results"
+  results_hpo: "results/hpo"
 # [Pipeline — AI Engineer Pipeline & Model] 
 
 models:

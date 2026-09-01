@@ -10,7 +10,6 @@ class RunShap :
     def run(self, X_train, y_train, X_test, y_test):
         print(f"Running SHAP analysis for variant {self.variant} on fold {self.fold}")
 
-        print(X_test)
         background = (
             X_test.groupby("PULocationID", group_keys=False, observed=False)
             .apply(
@@ -19,7 +18,7 @@ class RunShap :
             )
             .reset_index(drop=True)
         )
-
+        
         masker = shap.maskers.Independent(background)
         explainer = shap.Explainer(model, masker=masker, feature_names=X_test.columns.drop("PULocationID"))
 
