@@ -68,7 +68,9 @@ def load_data(fold: str, variant: str):
 
 def calculate_metrics(metric, y_true, y_pred):
     if metric == "wape":
-        return ((y_true - y_pred) / y_true).abs().mean()
+        sum_abs_err = (y_true - y_pred).abs().sum()
+        sum_abs_true = y_true.abs().sum()
+        return sum_abs_err / sum_abs_true
     elif metric == "rmse":
         return ((y_true - y_pred) ** 2).mean() ** 0.5
     elif metric == "mae":

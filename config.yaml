@@ -46,6 +46,7 @@ splits:
 
 # [PATHS] 
 paths:
+  results: "results"
   results_hpo: "results/hpo"
 # [Pipeline — AI Engineer Pipeline & Model] 
 
@@ -99,3 +100,5 @@ models:
       colsample_bytree:
         low: 0.7
         high: 1.0
+shap: 
+  zone_sample_size: 100
