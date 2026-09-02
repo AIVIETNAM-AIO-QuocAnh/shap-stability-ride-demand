@@ -25,6 +25,10 @@ class BuildPipeline:
             hpo.run()
 
     def run_shap(self, fold):
+        X_train, y_train, X_test, y_test = load_data(fold=fold, variant=self.variant)
+        for model_key in model_keys:
+            shap_runner = RunShap(fold=fold, model_key=model_key, variant=self.variant)
+            shap_runner.run(X_train, y_train, X_test, y_test)
         pass
 
     def run_fold(self, fold):

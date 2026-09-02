@@ -8,7 +8,8 @@ from src.pipeline.build_pipeline import BuildPipeline
 # finetune = BuildPipeline(variant="A")
 # finetune.run_hpo()
 baseline_experiment = BuildPipeline(variant="A")
-baseline_experiment.run_fold(fold = "fold1")
+# baseline_experiment.run_fold(fold = "fold1")
+baseline_experiment.run_shap(fold = "fold1")
 # baseline_experiment.run_shap(fold = "hpo")
 ### Run variant_A
 # variant_A = BuildPipeline(variant="A")
