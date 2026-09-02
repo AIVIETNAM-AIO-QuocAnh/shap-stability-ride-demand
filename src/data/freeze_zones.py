@@ -55,7 +55,7 @@ def select_and_freeze_top50(agg_paths: dict[str, Path]) -> list[int]:
     del jan_jun_frames
 
     zone_totals = (
-        jan_jun_all.groupby("PULocationID")["trip_count"]
+        jan_jun_all.groupby("pu_location_id")["trip_count"]
         .sum()
         .sort_values(ascending=False)
     )
@@ -67,7 +67,7 @@ def select_and_freeze_top50(agg_paths: dict[str, Path]) -> list[int]:
     freeze_record = {
         "frozen_at_utc": datetime.isoformat() + "Z",
         "selection_period": "2025-01-01 to 2025-06-30",
-        "selection_rule": "top 50 PULocationID by total request count (demand), Jan-Jun 2025",
+        "selection_rule": "top 50 pu_location_id by total request count (demand), Jan-Jun 2025",
         "n_zones": N_TOP_ZONES,
         "zone_ids": top50_ids,
         "zone_total_demand": {int(k): int(v) for k, v in top50.items()},
@@ -106,7 +106,7 @@ def sanity_check(agg_paths: dict[str, Path], top50_ids: list[int]):
         df = pd.read_csv(path)
         month_total = int(df["trip_count"].sum())
         total_demand_all_year += month_total
-        n_unique_zones = df["PULocationID"].nunique()
+        n_unique_zones = df["pu_location_id"].nunique()
         print(
             f"  {month_label}: {len(df):,} zone-hour rows, "
             f"{n_unique_zones} zone khác nhau, tổng demand = {month_total:,}"

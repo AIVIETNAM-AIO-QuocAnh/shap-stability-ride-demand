@@ -75,11 +75,11 @@ def load_full_year_agg(agg_dir: Path) -> pd.DataFrame:
     del frames
     print(f"Đã gộp 12 tháng aggregate: {len(agg_all):,} zone-hour rows.")
 
-    # Gộp (sum trip_count) theo (PULocationID, hour) để loại trùng key trước khi
+    # Gộp (sum trip_count) theo (pu_location_id, hour) để loại trùng key trước khi
     # merge vào grid, tránh 1 row trong grid bị nhân đôi khi merge.
     n_before = len(agg_all)
     agg_all = (
-        agg_all.groupby(["PULocationID", "hour"], as_index=False)["trip_count"]
+        agg_all.groupby(["pu_location_id", "hour"], as_index=False)["trip_count"]
         .sum()
     )
     n_after = len(agg_all)
@@ -102,7 +102,7 @@ def build_hourly_grid(zone_ids: list[int]) -> pd.DataFrame:
     """
     hours = pd.date_range(start=FULL_YEAR_START, end=FULL_YEAR_END, freq="h")
     grid = pd.MultiIndex.from_product(
-        [zone_ids, hours], names=["PULocationID", "target_datetime"]
+        [zone_ids, hours], names=["pu_location_id", "target_datetime"]
     ).to_frame(index=False)
 
     expected_rows = len(zone_ids) * len(hours)
@@ -116,12 +116,12 @@ def build_hourly_grid(zone_ids: list[int]) -> pd.DataFrame:
 
 def merge_demand(grid: pd.DataFrame, agg_all: pd.DataFrame, zone_ids: list[int]) -> pd.DataFrame:
     """Merge demand thưa vào dense grid; giờ không có request -> demand = 0."""
-    agg_top50 = agg_all[agg_all["PULocationID"].isin(zone_ids)].rename(
+    agg_top50 = agg_all[agg_all["pu_location_id"].isin(zone_ids)].rename(
         columns={"hour": "target_datetime", "trip_count": "demand"}
     )
 
     panel = grid.merge(
-        agg_top50, on=["PULocationID", "target_datetime"], how="left"
+        agg_top50, on=["pu_location_id", "target_datetime"], how="left"
     )
 
     # Kiểm tra xem sau gộp có thừa dòng không
@@ -135,7 +135,7 @@ def merge_demand(grid: pd.DataFrame, agg_all: pd.DataFrame, zone_ids: list[int])
     n_zero_filled = panel["demand"].isna().sum()
     panel["demand"] = panel["demand"].fillna(0).astype("int32")
 
-    panel = panel.sort_values(["PULocationID", "target_datetime"]).reset_index(drop=True)
+    panel = panel.sort_values(["pu_location_id", "target_datetime"]).reset_index(drop=True)
 
     print(
         f"Đã merge demand vào grid: {n_zero_filled:,} zone-hour được fill demand=0 "
@@ -160,7 +160,7 @@ def add_calendar_features(panel: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_lag_features(panel: pd.DataFrame) -> pd.DataFrame:
-    grouped = panel.groupby("PULocationID")["demand"]
+    grouped = panel.groupby("pu_location_id")["demand"]
     for lag in ALL_LAGS:
         panel[f"lag_{lag}"] = grouped.shift(lag)
 
@@ -199,8 +199,8 @@ def apply_warmup_cutoff(panel: pd.DataFrame) -> pd.DataFrame:
 
 def sanity_check(panel: pd.DataFrame, zone_ids: list[int]):
     print("=== SANITY CHECK ===")
-    assert panel["PULocationID"].nunique() == len(zone_ids), "Thiếu/thừa zone trong panel!"
-    assert panel[["PULocationID", "target_datetime"]].duplicated().sum() == 0, (
+    assert panel["pu_location_id"].nunique() == len(zone_ids), "Thiếu/thừa zone trong panel!"
+    assert panel[["pu_location_id", "target_datetime"]].duplicated().sum() == 0, (
         "Có row (zone, giờ) bị trùng!"
     )
     assert panel["demand"].min() >= 0, "Có demand âm, vô lý!"
@@ -213,7 +213,7 @@ def sanity_check(panel: pd.DataFrame, zone_ids: list[int]):
     print(f"Ngày bắt đầu thực tế: {first_date} (kỳ vọng ~ {expected_cutoff}).")
 
     print(f"Tổng số row cuối cùng: {len(panel):,}")
-    print(f"Số zone: {panel['PULocationID'].nunique()}")
+    print(f"Số zone: {panel['pu_location_id'].nunique()}")
     print("Sanity check PASS.")
 
 

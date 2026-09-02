@@ -48,8 +48,8 @@ def load_data(fold: str, variant: str):
 
     def add_zone_onehot(df, zone_ids):
         df = df.copy()
-        df["PULocationID"] = pd.Categorical(df["PULocationID"], categories=zone_ids)
-        dummies = pd.get_dummies(df["PULocationID"], prefix="zone")
+        df["pu_location_id"] = pd.Categorical(df["pu_location_id"], categories=zone_ids)
+        dummies = pd.get_dummies(df["pu_location_id"], prefix="zone")
         dummies = dummies.reindex(
             columns=[f"zone_{zone_id}" for zone_id in zone_ids],
             fill_value=0,

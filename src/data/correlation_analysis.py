@@ -30,7 +30,7 @@ LAG_PAIRS = [
 ]
 
 ALL_EXPECTED_COLS = [
-    "PULocationID", "target_datetime", "demand", "hour", "dayofweek",
+    "pu_location_id", "target_datetime", "demand", "hour", "dayofweek",
     "is_holiday", "lag_1", "lag_24", "lag_168", "lag_336", "lag_504",
     "median_lag_3w",
 ]
@@ -39,7 +39,7 @@ ALL_EXPECTED_COLS = [
 
 def load_feature_table(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path, parse_dates=["target_datetime"])
-    print(f"Đã load feature table: {len(df):,} row, {df['PULocationID'].nunique()} zone.")
+    print(f"Đã load feature table: {len(df):,} row, {df['pu_location_id'].nunique()} zone.")
     return df
 
 
@@ -63,7 +63,7 @@ def qa_check_missing(df: pd.DataFrame):
 
 def qa_check_duplicate(df: pd.DataFrame):
     print("\n=== QA: DUPLICATE (zone, giờ) ===")
-    n_dup = df.duplicated(subset=["PULocationID", "target_datetime"]).sum()
+    n_dup = df.duplicated(subset=["pu_location_id", "target_datetime"]).sum()
     if n_dup > 0:
         raise ValueError(
             f"Phát hiện {n_dup} row (zone, giờ) bị trùng trong feature table."
@@ -80,7 +80,7 @@ def qa_check_zero_demand(df: pd.DataFrame):
     overall_zero_rate = (df["demand"] == 0).mean()
     print(f"Tỷ lệ giờ demand = 0 trên toàn bộ dữ liệu: {overall_zero_rate:.1%}")
 
-    zone_zero_rate = df.groupby("PULocationID")["demand"].apply(lambda s: (s == 0).mean())
+    zone_zero_rate = df.groupby("pu_location_id")["demand"].apply(lambda s: (s == 0).mean())
     high_zero_zones = zone_zero_rate[zone_zero_rate > 0.95]
 
     if len(high_zero_zones) > 0:
@@ -110,14 +110,14 @@ def compute_correlation_by_zone(df: pd.DataFrame) -> pd.DataFrame:
     records = []
     n_undefined = 0
 
-    for zone, zone_df in period_df.groupby("PULocationID"):
+    for zone, zone_df in period_df.groupby("pu_location_id"):
         for col_a, col_b in LAG_PAIRS:
             r = zone_df[col_a].corr(zone_df[col_b], method="pearson")
             if pd.isna(r):
                 n_undefined += 1
             records.append(
                 {
-                    "PULocationID": zone,
+                    "pu_location_id": zone,
                     "pair": f"{col_a}_vs_{col_b}",
                     "pearson_r": r,
                     "n_obs": len(zone_df),
@@ -126,7 +126,7 @@ def compute_correlation_by_zone(df: pd.DataFrame) -> pd.DataFrame:
 
     corr_df = pd.DataFrame(records)
 
-    n_zones = period_df["PULocationID"].nunique()
+    n_zones = period_df["pu_location_id"].nunique()
     print(f"Đã tính correlation cho {n_zones} zone x {len(LAG_PAIRS)} cặp lag.")
     if n_undefined > 0:
         print(
@@ -164,7 +164,7 @@ Mỗi row = 1 (zone, giờ). Đơn vị thời gian: giờ (hourly).
 ## 1. `feature_table.csv`
 | Cột | Kiểu | Mô tả | Ghi chú |
 |---|---|---|---|
-| `PULocationID` | int | Mã zone (pickup location), 1 trong 50 zone đã freeze | Chưa one-hot |
+| `pu_location_id` | int | Mã zone (pickup location), 1 trong 50 zone đã freeze | Chưa one-hot |
 | `target_datetime` | datetime | Mốc giờ t, giờ mà `demand` được đo | Chỉ để tham chiếu/debug, không phải feature |
 | `demand` | int | **Target** — số request tại zone đó, trong giờ đó | >= 0, có thể = 0 (giờ không có request nào) |
 | `hour` | int (0-23) | Giờ trong ngày, suy từ `target_datetime` | Feature nền |
@@ -190,7 +190,7 @@ Pearson correlation giữa 3 weekly lag, tính riêng cho từng zone, chỉ tr�
  
 | Cột | Kiểu | Mô tả | Ghi chú |
 |---|---|---|---|
-| `PULocationID` | int | Zone được tính correlation | 1 trong 50 zone đã freeze |
+| `pu_location_id` | int | Zone được tính correlation | 1 trong 50 zone đã freeze |
 | `pair` | str | Cặp weekly lag, dạng `lag_A_vs_lag_B` | 1 trong 3 giá trị: `lag_168_vs_lag_336`, `lag_168_vs_lag_504`, `lag_336_vs_lag_504` |
 | `pearson_r` | float | Hệ số Pearson correlation của riêng zone đó, cặp đó | Trong khoảng [-1, 1]; có thể là `NaN` nếu 1 trong 2 cột gần như hằng số trong giai đoạn đo |
 | `n_obs` | int | Số giờ dữ liệu dùng để tính correlation cho zone đó | Dùng để đánh giá độ tin cậy của `pearson_r` |
@@ -211,7 +211,7 @@ Tổng hợp mean ± SD của `pearson_r` trên 50 zone, cho mỗi cặp lag.
 ## File liên quan
  
 - `variant_feature_map.json` — định nghĩa cột feature theo Variant A/B/C.
-- `frozen/top50_zones_frozen.json` — vocabulary cố định cho one-hot `PULocationID`.
+- `frozen/top50_zones_frozen.json` — vocabulary cố định cho one-hot `pu_location_id`.
 
 """
     with open(path, "w", encoding="utf-8") as f:

@@ -59,7 +59,7 @@ SPLITS = {
 
 def load_feature_table(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path, parse_dates=["target_datetime"])
-    print(f"Đã load feature table: {len(df):,} row, {df['PULocationID'].nunique()} zone.")
+    print(f"Đã load feature table: {len(df):,} row, {df['pu_location_id'].nunique()} zone.")
     return df
 
 
@@ -70,7 +70,7 @@ def verify_lag_alignment(panel: pd.DataFrame, n_samples: int = 30, seed: int = 4
     """
     print("=== QA/QC: XÁC MINH LAG ALIGNMENT ===")
 
-    lookup = panel.set_index(["PULocationID", "target_datetime"])["demand"]
+    lookup = panel.set_index(["pu_location_id", "target_datetime"])["demand"]
 
     # Chỉ check từ các row đủ xa mốc bắt đầu bảng để đảm bảo mọi lag đều tra cứu được
     min_dt = panel["target_datetime"].min()
@@ -92,7 +92,7 @@ def verify_lag_alignment(panel: pd.DataFrame, n_samples: int = 30, seed: int = 4
     mismatches = []
 
     for _, row in samples.iterrows():
-        zone = row["PULocationID"]
+        zone = row["pu_location_id"]
         t = row["target_datetime"]
 
         for lag in ALL_LAGS:

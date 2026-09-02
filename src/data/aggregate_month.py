@@ -1,6 +1,6 @@
 """
 Aggregate raw HVFHV theo tháng, theo zone x hour.
-Chỉ đọc 2 cột cần thiết: request_datetime, PULocationID (đúng protocol mục 2.1).
+Chỉ đọc 2 cột cần thiết: request_datetime, pu_location_id (đúng protocol mục 2.1).
 """
 
 import gc
@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 # Chỉ 2 cột này được đọc từ raw data
-NEEDED_COLUMNS = ["request_datetime", "PULocationID"]
+NEEDED_COLUMNS = ["request_datetime", "pu_location_id"]
 
 
 def _read_columns_csv(filepath: Path, chunksize: int = 2_000_000) -> pd.DataFrame:
@@ -36,7 +36,7 @@ def aggregate_month(
     output_dir: Path,
 ) -> Path:
     """
-    Aggregate 1 tháng raw trip data -> bảng (PULocationID, hour, trip_count).
+    Aggregate 1 tháng raw trip data -> bảng (pu_location_id, hour, trip_count).
 
     trip_count = số request trong giờ đó tại zone đó, tính theo request_datetime
     (đúng định nghĩa target trong protocol: "Target là số request trong target hour").
@@ -58,18 +58,18 @@ def aggregate_month(
 
     # Loại bỏ row thiếu dữ liệu cần thiết
     n_before = len(df)
-    df = df.dropna(subset=["request_datetime", "PULocationID"])
+    df = df.dropna(subset=["request_datetime", "pu_location_id"])
     n_dropped = n_before - len(df)
     if n_dropped > 0:
-        print(f"[{month_label}] CẢNH BÁO: Loại {n_dropped:,} row do thiếu request_datetime/PULocationID.")
+        print(f"[{month_label}] CẢNH BÁO: Loại {n_dropped:,} row do thiếu request_datetime/pu_location_id.")
 
-    # Chuẩn hoá hour và PULocationID
+    # Chuẩn hoá hour và pu_location_id
     df["hour"] = df["request_datetime"].dt.floor("h")
-    df["PULocationID"] = df["PULocationID"].astype("int32")
+    df["pu_location_id"] = df["pu_location_id"].astype("int32")
 
     # Aggregate: đếm số request theo (zone, hour)
     agg = (
-        df.groupby(["PULocationID", "hour"], as_index=False)
+        df.groupby(["pu_location_id", "hour"], as_index=False)
         .size()
         .rename(columns={"size": "trip_count"})
     )

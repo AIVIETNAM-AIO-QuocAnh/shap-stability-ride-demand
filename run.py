@@ -1,36 +1,15 @@
 from src.pipeline.build_pipeline import BuildPipeline
-### Run baseline to test the pipeline
 
-# baseline_experiment = BuildPipeline(variant="A")
-# baseline_experiment.run_baseline(fold = "fold1")
+# 1) HPO on variant A (creates results/hpo/{model}/best_params.json) — run once, can be commented if already done
+tuning = BuildPipeline(variant="A")
+tuning.run_hpo()
 
-### Run HPO  -> finetuned models on variant_A
-# finetune = BuildPipeline(variant="A")
-# finetune.run_hpo()
-baseline_experiment = BuildPipeline(variant="A")
-# baseline_experiment.run_fold(fold = "fold1")
-baseline_experiment.run_shap(fold = "fold1")
-# baseline_experiment.run_shap(fold = "hpo")
-### Run variant_A
-# variant_A = BuildPipeline(variant="A")
-# variant_A.run(fold = "fold1")
-# variant_A.run(fold = "fold2")
-# variant_A.run(fold = "fold3")
-# variant_A.run(fold = "fold4")
-# variant_A.run(fold = "final_test")
+# 2) Baseline (unfinetuned) on split hpo, reuse run_fold with tuned=False
+tuning.run_fold(fold="hpo", tuned=False)
 
-### Run variant_B
-# Variant_B = BuildPipeline(variant="B")
-# Variant_B.run(fold = "fold1")
-# Variant_B.run(fold = "fold2")
-# Variant_B.run(fold = "fold3")
-# Variant_B.run(fold = "fold4")
-# Variant_B.run(fold = "final_test")
-
-### Run variant_C
-# Variant_C = BuildPipeline(variant="C")
-# Variant_C.run(fold = "fold1")
-# Variant_C.run(fold = "fold2")
-# Variant_C.run(fold = "fold3")
-# Variant_C.run(fold = "fold4")
-# Variant_C.run(fold = "final_test")
+# 3) Core training + SHAP for all 3 variants x 5 folds, using frozen config
+for variant in ["A", "B", "C"]:
+    pipeline = BuildPipeline(variant=variant)
+    for fold in ["fold1", "fold2", "fold3", "fold4", "final_test"]:
+        pipeline.run_fold(fold, tuned=True)
+        pipeline.run_shap(fold)
