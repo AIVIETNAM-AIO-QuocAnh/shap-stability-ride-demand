@@ -44,9 +44,10 @@ splits:
     valid_end: "2025-12-31"
 
 
-# [PATHS] 
+# [PATHS]
 paths:
   results_hpo: "results/hpo"
+  results: "results"
 # [Pipeline — AI Engineer Pipeline & Model] 
 
 models:
