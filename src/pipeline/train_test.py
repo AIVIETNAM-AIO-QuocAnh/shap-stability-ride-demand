@@ -7,8 +7,6 @@ import lightgbm as lgb
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 import joblib
-import json
-import pandas as pd
 
 from src.utilities import load_config, resolve_path, calculate_metrics
 
@@ -16,15 +14,25 @@ cfg = load_config()
 
 
 class TrainTest:
-    def __init__(self, train_data, test_data, model_key):
+    def __init__(self, train_data, test_data, model_key, use_tuned=True):
         self.X_train, self.y_train = train_data
         self.X_test, self.y_test = test_data
         self.model_key = model_key
         self.metrics = []
-        self.hyperparams = cfg["models"][model_key]  # @TODO: thay bằng hyperparams từ file JSON của HPO sau khi freeze
+
+        common_params = cfg["models"][self.model_key]
+        self.hyperparams = {
+            "random_state": cfg["seed"],
+            **common_params
+        }
+
+        if use_tuned:
+            hpo_dir = resolve_path(cfg, "results_hpo")
+            with open(hpo_dir / self.model_key / "best_params.json") as f:
+                tuned_params = json.load(f)
+            self.hyperparams.update(tuned_params)
 
     def run(self, fold):
-        print(self.model_key)
         if self.model_key == "xgboost":
             model = XGBRegressor(**self.hyperparams)
         else:

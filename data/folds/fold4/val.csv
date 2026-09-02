@@ -1,4 +1,4 @@
-PULocationID,target_datetime,demand,hour,dayofweek,is_holiday,lag_1,lag_24,lag_168,lag_336,lag_504,median_lag_3w
+pu_location_id,target_datetime,demand,hour,dayofweek,is_holiday,lag_1,lag_24,lag_168,lag_336,lag_504,median_lag_3w
 7,2025-11-01 00:00:00,636,0,5,0,601,173,430,384,366,384.0
 7,2025-11-01 01:00:00,697,1,5,0,636,133,380,287,317,317.0
 7,2025-11-01 02:00:00,623,2,5,0,697,117,258,247,231,247.0

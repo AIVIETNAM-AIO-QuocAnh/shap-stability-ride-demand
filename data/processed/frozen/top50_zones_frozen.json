@@ -1,7 +1,7 @@
 {
   "frozen_at_utc": "2026-08-29T10:13:52.243775Z",
   "selection_period": "2025-01-01 to 2025-06-30",
-  "selection_rule": "top 50 PULocationID by total request count (demand), Jan-Jun 2025",
+  "selection_rule": "top 50 location_id by total request count (demand), Jan-Jun 2025",
   "n_zones": 50,
   "zone_ids": [
     138,

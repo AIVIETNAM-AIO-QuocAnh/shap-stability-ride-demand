@@ -133,7 +133,7 @@ def check_top50_frozen():
         fail("Some zone ID cannot be converted to int.")
 
     if any(z <= 0 for z in zone_ids_int):
-        fail("Frozen zone list contains a PULocationID <= 0.")
+        fail("Frozen zone list contains a pu_location_id <= 0.")
 
     expected_period = "2025-01-01 to 2025-06-30"
     selection_period = record.get("selection_period")
@@ -199,7 +199,7 @@ def check_feature_table(zone_ids):
     df = load_feature_table()
 
     required_columns = [
-        "PULocationID", "target_datetime", "demand", "hour",
+        "pu_location_id", "target_datetime", "demand", "hour",
         "dayofweek", "is_holiday", "lag_1", "lag_24", "lag_168",
         "lag_336", "lag_504", "median_lag_3w",
     ]
@@ -211,7 +211,7 @@ def check_feature_table(zone_ids):
         )
 
     observed_zones = sorted(
-        df["PULocationID"].dropna().astype(int).unique().tolist()
+        df["pu_location_id"].dropna().astype(int).unique().tolist()
     )
     expected_zones = sorted(zone_ids)
     if observed_zones != expected_zones:
@@ -224,7 +224,7 @@ def check_feature_table(zone_ids):
     print("Zone vocabulary = frozen Top-50: PASS")
 
     duplicate_count = (
-        df[["PULocationID", "target_datetime"]].duplicated().sum()
+        df[["pu_location_id", "target_datetime"]].duplicated().sum()
     )
     if duplicate_count > 0:
         fail(f"Feature table has {duplicate_count:,} duplicate rows.")
@@ -252,7 +252,7 @@ def check_feature_table(zone_ids):
         fail("Some target_datetime values have second != 0.")
     print("Target timestamp hour alignment: PASS")
 
-    rows_per_zone = df.groupby("PULocationID").size()
+    rows_per_zone = df.groupby("pu_location_id").size()
     expected_hours = 8256  # first 404 hours were trimmed
     if not (rows_per_zone == expected_hours).all():
         bad = rows_per_zone[rows_per_zone != expected_hours]
@@ -268,7 +268,7 @@ def check_feature_table(zone_ids):
     print(f"Total rows: {len(df):,}: PASS")
 
     print("Checking hourly continuity by zone...")
-    for zone, group in df.groupby("PULocationID"):
+    for zone, group in df.groupby("pu_location_id"):
         times = group["target_datetime"].sort_values()
         diffs = times.diff().dropna()
         if not (diffs == pd.Timedelta(hours=1)).all():
@@ -420,7 +420,7 @@ def check_fold_structure(zone_ids):
         if len(eval_df) == 0:
             fail(f"[{split_name}] eval/test is empty.")
 
-        required = {"PULocationID", "target_datetime", "demand"}
+        required = {"pu_location_id", "target_datetime", "demand"}
         for name, data in [("train", train), ("eval/test", eval_df)]:
             missing = required - set(data.columns)
             if missing:
@@ -440,10 +440,10 @@ def check_fold_structure(zone_ids):
             fail(f"[{split_name}] columns differ from other folds.")
 
         train_zones = sorted(
-            train["PULocationID"].dropna().astype(int).unique().tolist()
+            train["pu_location_id"].dropna().astype(int).unique().tolist()
         )
         eval_zones = sorted(
-            eval_df["PULocationID"].dropna().astype(int).unique().tolist()
+            eval_df["pu_location_id"].dropna().astype(int).unique().tolist()
         )
         expected_zones = sorted(zone_ids)
         if train_zones != expected_zones:
@@ -494,7 +494,7 @@ def check_fold_structure(zone_ids):
 
         for name, data in [("train", train), ("eval/test", eval_df)]:
             duplicate_count = (
-                data[["PULocationID", "target_datetime"]]
+                data[["pu_location_id", "target_datetime"]]
                 .duplicated()
                 .sum()
             )

@@ -31,15 +31,15 @@ class BuildPipeline:
             shap_runner.run(X_train, y_train, X_test, y_test)
         pass
 
-    def run_fold(self, fold):
+    def run_fold(self, fold, tuned=True):
         X_train, y_train, X_test, y_test = load_data(fold=fold, variant=self.variant)
 
-        print(X_train)
         for model_key in model_keys:
             train_test = TrainTest(
-                [X_train.drop(columns=["PULocationID"], axis=1), y_train],
-                [X_test.drop(columns=["PULocationID"], axis=1), y_test],
+                [X_train.drop(columns=["pu_location_id"]), y_train],
+                [X_test.drop(columns=["pu_location_id"]), y_test],
                 model_key=model_key,
+                use_tuned=tuned,
             )
             model, metrics, y_pred = train_test.run(fold=fold)
 
@@ -50,11 +50,13 @@ class BuildPipeline:
                 y_true=y_test,
                 fold=fold,
                 model_key=model_key,
+                tuned=tuned,
             )
             print(f"Saved results to: {path}")
 
-    def save_artifacts(self, model, metrics, y_pred, y_true, fold, model_key):
-        base_path = resolve_path(cfg, "results") / self.variant / fold / model_key
+    def save_artifacts(self, model, metrics, y_pred, y_true, fold, model_key, tuned=True):
+        model_dir_name = model_key if tuned else f"{model_key}_baseline"
+        base_path = resolve_path(cfg, "results") / self.variant / fold / model_dir_name
         base_path.mkdir(parents=True, exist_ok=True)
 
         model_path = base_path / "model.pkl"
