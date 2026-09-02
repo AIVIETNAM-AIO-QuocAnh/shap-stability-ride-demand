@@ -1,3 +1,7 @@
+import json
+from pathlib import Path
+
+import pandas as pd
 import xgboost as xgb
 import lightgbm as lgb
 from xgboost import XGBRegressor
@@ -10,42 +14,35 @@ from src.utilities import load_config, resolve_path, calculate_metrics
 
 cfg = load_config()
 
-class TrainTest :
-    def __init__(self, train_data, test_data, model_key, params):
+
+class TrainTest:
+    def __init__(self, train_data, test_data, model_key):
         self.X_train, self.y_train = train_data
         self.X_test, self.y_test = test_data
         self.model_key = model_key
-        self.params = params
+        self.metrics = []
+        self.hyperparams = cfg["models"][model_key]  # @TODO: thay bằng hyperparams từ file JSON của HPO sau khi freeze
 
     def run(self, fold):
+        print(self.model_key)
         if self.model_key == "xgboost":
-            self.model = XGBRegressor(**self.params)
+            model = XGBRegressor(**self.hyperparams)
         else:
-            self.model = LGBMRegressor(**self.params)
+            model = LGBMRegressor(**self.hyperparams)
 
-        self.model.fit(self.X_train, self.y_train)
-        self.y_pred = self.model.predict(self.X_test)
+        model.fit(self.X_train, self.y_train)
+        y_pred = model.predict(self.X_test)
 
-        self.metrics = {}
-        for metric in ("mae", "rmse", "wape"):
-            self.metrics[metric] = calculate_metrics(metric, self.y_test, self.y_pred)
-            
-    def log(self, model_name, variant, fold): #đưa các kết quả từ run() ra .csv/.txt
-        # Hoàn thiện phần xử lí đường dẫn
-        path = resolve_path(cfg, 'results') / variant / fold / model_name
-        path.mkdir(parents=True, exist_ok=True)
-        print(f"Logging results to {path}")
-        # lưu model
-        joblib.dump(self.model, path/"model.joblib")
-        # lưu metrics ra csv
-        with open(path / "metrics.json", "w", encoding="utf-8") as f:
-            json.dump(self.metrics, f, indent=2)
-        # lưu predictions ra csv cho tập evaluation
-        pd.DataFrame({"y_true": self.y_test, "y_pred": self.y_pred}).to_csv(path / "predictions.csv", index=False)
-        # df = pd.DataFrame(self.results)
-        # df.to_csv(
-        #     path,
-        #     mode="a",                     # append
-        #     header=not path.exists(), # chỉ ghi header nếu file chưa tồn tại
-        #     index=False,
-        # )
+        mae = calculate_metrics("mae", self.y_test, y_pred)
+        rmse = calculate_metrics("rmse", self.y_test, y_pred)
+        wape = calculate_metrics("wape", self.y_test, y_pred)
+
+        self.metrics = {
+            "mae": float(mae),
+            "rmse": float(rmse),
+            "wape": float(wape),
+        }
+
+        print(f"Metrics for {self.model_key} on fold {fold}: {self.metrics}")
+        return model, self.metrics, y_pred
+
