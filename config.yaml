@@ -48,6 +48,7 @@ splits:
 paths:
   results: "results"
   results_hpo: "results/hpo"
+  data_fold: "data/folds"
 # [Pipeline — AI Engineer Pipeline & Model] 
 
 models:
