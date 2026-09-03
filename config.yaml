@@ -49,6 +49,7 @@ paths:
   results: "results"
   results_hpo: "results/hpo"
   data_fold: "data/folds"
+  data_processed: "data/processed"
 # [Pipeline — AI Engineer Pipeline & Model] 
 
 models:
