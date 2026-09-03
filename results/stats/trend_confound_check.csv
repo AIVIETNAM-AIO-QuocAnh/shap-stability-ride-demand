@@ -1,0 +1,13 @@
+variant,model,feature,trend_rho_fold1_4,z_final_test,final_inside_cv_range,continues_existing_trend,verdict
+A,lightgbm,lag_168,0.7999999999999999,-0.15062677603656602,True,False,trong dải fold1-4 (không phải dịch chuyển)
+A,lightgbm,lag_336,0.0,-2.8049351099268267,False,False,gãy khỏi xu hướng fold1-4 → regime là cách đọc hợp lý hơn
+A,lightgbm,lag_504,0.39999999999999997,1.0191527762768535,True,True,trong dải fold1-4 (không phải dịch chuyển)
+A,xgboost,lag_168,0.7999999999999999,-0.31499528003984745,True,False,trong dải fold1-4 (không phải dịch chuyển)
+A,xgboost,lag_336,0.0,-1.048771201807978,True,False,trong dải fold1-4 (không phải dịch chuyển)
+A,xgboost,lag_504,0.7999999999999999,2.866994452164956,False,True,nối dài xu hướng sẵn có → LẪN confound train-size
+B,lightgbm,median_lag_3w,0.7999999999999999,-0.4204083544627667,True,False,trong dải fold1-4 (không phải dịch chuyển)
+B,xgboost,median_lag_3w,1.0,-0.8694818414853569,True,False,trong dải fold1-4 (không phải dịch chuyển)
+C,lightgbm,lag_168,1.0,0.6272298235621676,True,True,trong dải fold1-4 (không phải dịch chuyển)
+C,lightgbm,median_lag_3w,0.7999999999999999,-2.0085455902287723,False,False,gãy khỏi xu hướng fold1-4 → regime là cách đọc hợp lý hơn
+C,xgboost,lag_168,1.0,0.9389398145658243,True,True,trong dải fold1-4 (không phải dịch chuyển)
+C,xgboost,median_lag_3w,0.39999999999999997,-0.5182127354306152,True,False,trong dải fold1-4 (không phải dịch chuyển)
