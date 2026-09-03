@@ -48,6 +48,8 @@ splits:
 paths:
   results: "results"
   results_hpo: "results/hpo"
+  results_stats: "results/stats"
+  variant_map: "data/processed/variant_feature_map.json"
 # [Pipeline — AI Engineer Pipeline & Model] 
 
 models:
