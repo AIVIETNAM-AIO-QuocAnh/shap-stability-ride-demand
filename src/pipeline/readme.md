@@ -1,45 +1,107 @@
-# HPO flow
+# Module Pipeline — training, SHAP
 
-HPO = tìm bộ tham số tối ưu cho model trên tập `hpo`.
+Phạm vi: vai trò **AI Pipeline** (runner, config, artifact structure, SHAP sampling) +
+**AI Model** (baseline, Optuna, train A/B/C, tính prediction/SHAP metrics) theo `m03-proposal.pdf`
+mục 4. Không gồm phần data (`src/data/`, xem `src/data/README.md`).
 
-## Luồng chạy
+## Luồng tổng quát
 
-```
-setup thí nghiệm ở `run.py` (Không phải cái trong src.test)
-buildpipeline: giữ variant, và cung cấp data cho các tác vụ con
-các phase của thí nghiệm : run_hpo -> run_fold -> run_shap(đang implement) -> run_stats(bổ sung sau) -> ... 
-```
-
-Quy trình:
-
-1. Load dữ liệu `hpo` train/val
-2. Chạy Optuna cho từng model: `xgboost`, `lightgbm`
-3. Tìm `best_params`
-4. Lưu vào `results/hpo/`
-
-## Đầu vào HPO
-
-- dữ liệu train `data/folds/hpo/train.csv`
-- dữ liệu val `data/folds/hpo/val.csv`
-- feature mapping theo variant
-- search space trong `config.yaml`
-
-## Đầu ra HPO
-
-- file JSON chứa tham số tốt nhất, ví dụ:
-  - `results/hpo/xgboost_best_params.json`
-  - `results/hpo/lightgbm_best_params.json`
-
-Nội dung mẫu:
-
-```json
-{
-  "learning_rate": 0.05,
-  "max_depth": 6,
-  "n_estimators": 300
-}
+```text
+run.py
+  │
+  ├─ 1) HPO (chỉ Variant A, trên split "hpo")
+  │     BuildPipeline("A").run_hpo()
+  │       └─ RunHpo: Optuna 20 trials/model (TPESampler seed=42)
+  │            → results/hpo/{model}/best_params.json
+  │
+  ├─ 2) Baseline chưa tune (untuned) trên cùng split "hpo"
+  │     BuildPipeline("A").run_fold(fold="hpo", tuned=False)
+  │       └─ TrainTest(use_tuned=False) → results/A/hpo/{model}_baseline/
+  │            (để so sánh baseline-vs-tuned, proposal mục 3.2)
+  │
+  └─ 3) Core experiment: 3 variant × 5 fold × 2 model = 30 tổ hợp
+        for variant in [A, B, C]:
+          for fold in [fold1, fold2, fold3, fold4, final_test]:
+            pipeline.run_fold(fold, tuned=True)   → train_test.py
+            pipeline.run_shap(fold)               → run_shap.py
 ```
 
-## Mục đích
+`BuildPipeline` chỉ giữ 1 `variant`, mọi hàm con (`run_hpo`, `run_fold`, `run_shap`) tự load lại
+data qua `load_data(fold, variant)` trong `src/utilities.py` — mỗi lần gọi đọc CSV mới, không cache.
 
-Tên gọi: tìm bộ siêu tham số tốt nhất cho các model trước khi đi vào bước freeze và dùng lại ở các fold/final sau.
+## `build_pipeline.py` — `BuildPipeline`
+
+- `run_hpo()`: load data `fold="hpo"`, chạy `RunHpo` cho từng model trong `["xgboost", "lightgbm"]`.
+- `run_fold(fold, tuned=True)`: load data, train qua `TrainTest`, lưu `model.pkl` / `metrics.json` /
+  `y_pred.csv` vào `results/{variant}/{fold}/{model hoặc model_baseline}/` (tên thư mục thêm hậu tố
+  `_baseline` khi `tuned=False`, để tách khỏi kết quả đã tune).
+- `run_shap(fold)`: load lại data (để có `X_test` gốc cho SHAP), chạy `RunShap` cho từng model.
+
+## `run_hpo.py` — `RunHpo` (Optuna)
+
+- `objective(trial)`: build params = `config.models[model_key]` (baseline) ghi đè bởi giá trị Optuna
+  suggest theo `config.models.optuna.{model_key}` (list → `suggest_categorical`, dict `{low,high,log}`
+  → `suggest_float`); train, trả về `MAE` trên validation của split `hpo` — đây là objective để
+  Optuna minimize (đúng proposal mục 2.4: tuning chỉ dùng MAE, chỉ Variant A, chỉ split HPO).
+- `run()`: `TPESampler(seed=cfg["seed"])`, số trial = `cfg["models"]["optuna"]["n_trials"]` (= 20).
+  Lưu `study.best_params` vào `results/hpo/{model_key}/best_params.json`.
+- Search space và baseline config đều đọc từ `config.yaml` (`models.optuna.*`, `models.{model_key}`),
+  không hardcode trong code — khớp bảng search space ở proposal mục 2.4.
+
+## `train_test.py` — `TrainTest`
+
+- Hyperparams = baseline config (`config.yaml → models[model_key]`) + `random_state=seed`; nếu
+  `use_tuned=True` thì ghi đè bằng `results/hpo/{model_key}/best_params.json` (best config đã freeze
+  từ bước Optuna, dùng nguyên vẹn cho mọi variant/fold — không tune lại, đúng proposal mục 2.4).
+- `run(fold)`: fit model, predict, tính `mae/rmse/wape` qua `calculate_metrics()` (`src/utilities.py`,
+  công thức khớp proposal mục 2.5). Trả `(model, metrics, y_pred)` cho `BuildPipeline.save_artifacts`.
+
+## `run_shap.py` — `RunShap`
+
+- **`main()` (chạy 1 lần, trước core loop):** với mỗi fold (`fold1-4`, `final_test`), lấy `X_test` của
+  Variant A, sample 100 row/zone (tổng ~5.000 row, `np.random.default_rng(seed)`), lưu row index vào
+  `data/folds/{fold}/sample_indices.csv`. Chạy bằng `python -m src.pipeline.run_shap`.
+- **`RunShap.run()` (gọi trong core loop, mỗi variant/model/fold):** `load_sample_indices()` đọc lại
+  đúng `sample_indices.csv` của fold đó — **cùng 1 tập row cho cả A/B/C và cả 2 model trong 1 fold**,
+  đúng SHAP sampling protocol proposal mục 2.6 (tách sample ra khỏi core loop để đảm bảo không lệch
+  giữa các lần gọi, thay vì mỗi lần resample lại).
+- `shap.TreeExplainer(model, feature_perturbation="tree_path_dependent")` — cố định cho cả 2 model.
+- `save_shap_artifacts`: lưu `shap_values.pkl` (raw Explanation object — traceable, chưa tổng hợp),
+  `shap_bar.png`, `shap_beeswarm.png`.
+- `save_importance`: tính $I_{j,f} = \frac{1}{|S_f|}\sum_{i \in S_f} |\phi_{i,j,f}|$ (mean SHAP tuyệt
+  đối qua sample) cho từng feature → `shap_importance.csv`; cộng dồn importance của các
+  `weekly_features` theo variant (đọc từ `data/processed/variant_feature_map.json`) →
+  `shap_weekly_group.json` (`{"weekly_group_importance": float}`) — đúng công thức weekly-group
+  proposal mục 2.6.
+
+## Cấu trúc `results/`
+
+```text
+results/
+├── hpo/{xgboost,lightgbm}/best_params.json
+└── {A,B,C}/
+    ├── hpo/{xgboost,lightgbm}_baseline/    # baseline chưa tune, so sánh baseline-vs-tuned
+    └── {fold1,fold2,fold3,fold4,final_test}/{xgboost,lightgbm}/
+        ├── model.pkl
+        ├── metrics.json                    # mae, rmse, wape
+        ├── y_pred.csv
+        ├── shap_values.pkl                 # raw per-sample SHAP (Explanation object)
+        ├── shap_bar.png, shap_beeswarm.png
+        ├── shap_importance.csv             # feature, importance — đã gộp mean qua sample
+        └── shap_weekly_group.json          # {"weekly_group_importance": float}
+```
+
+## Cách chạy
+
+```bash
+# 1) Sinh sample_indices.csv cho từng fold (chỉ cần 1 lần, hoặc khi đổi seed/zone_sample_size)
+python -m src.pipeline.run_shap
+
+# 2) HPO + baseline + core A/B/C × 5 fold × 2 model (train + SHAP)
+python run.py
+```
+
+Không hardcode đường dẫn: mọi path đọc qua `resolve_path(cfg, key)` (`src/utilities.py`), khai báo
+trong `config.yaml → paths`. Đường dẫn `variant_feature_map.json` trong `src/utilities.py:load_data`
+hiện vẫn hardcode thay vì dùng `paths.variant_map` (đã dùng đúng trong `run_shap.py`) — biết trước,
+chưa refactor.

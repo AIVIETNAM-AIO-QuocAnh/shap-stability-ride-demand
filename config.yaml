@@ -50,6 +50,8 @@ paths:
   results_hpo: "results/hpo"
   results_stats: "results/stats"
   variant_map: "data/processed/variant_feature_map.json"
+  data_fold: "data/folds"
+  data_processed: "data/processed"
 # [Pipeline — AI Engineer Pipeline & Model] 
 
 models:
