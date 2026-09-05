@@ -1,56 +1,83 @@
-import json
-from pathlib import Path
+"""Train and evaluate the configured tree models."""
 
-import pandas as pd
-import xgboost as xgb
-import lightgbm as lgb
-from xgboost import XGBRegressor
+import logging
+from typing import TypeAlias, TypedDict
+
+import numpy as np
 from lightgbm import LGBMRegressor
-import joblib
+from xgboost import XGBRegressor
 
-from src.configuration import load_model_config
-from src.utilities import calculate_metrics
+from src.load_config import ModelParameters, load_model_config
+from src.pipeline.metrics import (
+    mean_absolute_error,
+    root_mean_squared_error,
+    weighted_absolute_percentage_error,
+)
+from src.utilities import ModelData
 
-cfg = load_model_config()
+
+logger = logging.getLogger(__name__)
+
+ModelEstimator: TypeAlias = XGBRegressor | LGBMRegressor
 
 
-class TrainTest:
-    def __init__(self, train_data, test_data, model_key, use_tuned=True):
-        self.X_train, self.y_train = train_data
-        self.X_test, self.y_test = test_data
-        self.model_key = model_key
-        self.metrics = []
+class PredictionMetrics(TypedDict):
+    """Prediction metrics stored for one evaluation run."""
 
-        common_params = cfg["models"][self.model_key]
-        self.hyperparams = {
-            "random_state": cfg["seed"],
-            **common_params
-        }
+    mae: float
+    rmse: float
+    wape: float
 
-        if use_tuned:
-            hpo_dir = cfg["paths"]["results_hpo"]
-            with open(hpo_dir / self.model_key / "best_params.json") as f:
-                tuned_params = json.load(f)
-            self.hyperparams.update(tuned_params)
 
-    def run(self, fold):
-        if self.model_key == "xgboost":
-            model = XGBRegressor(**self.hyperparams)
-        else:
-            model = LGBMRegressor(**self.hyperparams)
+class TrainingResult(TypedDict):
+    """Trained estimator output used by artifact writers and SHAP."""
 
-        model.fit(self.X_train, self.y_train)
-        y_pred = model.predict(self.X_test)
+    model: ModelEstimator
+    metrics: PredictionMetrics
+    y_pred: np.ndarray
 
-        mae = calculate_metrics("mae", self.y_test, y_pred)
-        rmse = calculate_metrics("rmse", self.y_test, y_pred)
-        wape = calculate_metrics("wape", self.y_test, y_pred)
 
-        self.metrics = {
-            "mae": float(mae),
-            "rmse": float(rmse),
-            "wape": float(wape),
-        }
+def build_model(model_key: str, parameters: ModelParameters) -> ModelEstimator:
+    """Build one supported estimator from explicit parameters."""
+    if model_key == "xgboost":
+        return XGBRegressor(**parameters)
+    if model_key == "lightgbm":
+        return LGBMRegressor(**parameters)
+    raise ValueError(f"Unsupported model '{model_key}'; expected xgboost or lightgbm")
 
-        print(f"Metrics for {self.model_key} on fold {fold}: {self.metrics}")
-        return model, self.metrics, y_pred
+
+def model_parameters(model_key: str, tuned_parameters: ModelParameters | None) -> ModelParameters:
+    """Merge baseline parameters with an explicit frozen parameter set."""
+    config = load_model_config()
+    if model_key not in config["models"]:
+        raise ValueError(f"Unsupported model '{model_key}'; expected xgboost or lightgbm")
+    parameters: ModelParameters = {
+        "random_state": config["seed"],
+        **config["models"][model_key],
+    }
+    if tuned_parameters is not None:
+        parameters.update(tuned_parameters)
+    return parameters
+
+
+def train_and_evaluate(
+    data: ModelData,
+    model_key: str,
+    tuned_parameters: ModelParameters | None,
+    fold: str,
+) -> TrainingResult:
+    """Fit one model and calculate all locked prediction metrics."""
+    parameters = model_parameters(model_key, tuned_parameters)
+    model = build_model(model_key, parameters)
+    model.fit(data["X_train"], data["y_train"])
+    y_pred = model.predict(data["X_evaluation"])
+    metrics: PredictionMetrics = {
+        "mae": mean_absolute_error(data["y_evaluation"], y_pred),
+        "rmse": root_mean_squared_error(data["y_evaluation"], y_pred),
+        "wape": weighted_absolute_percentage_error(data["y_evaluation"], y_pred),
+    }
+    logger.info(
+        "model_evaluated",
+        extra={"model": model_key, "fold": fold, "metrics": metrics},
+    )
+    return {"model": model, "metrics": metrics, "y_pred": y_pred}
