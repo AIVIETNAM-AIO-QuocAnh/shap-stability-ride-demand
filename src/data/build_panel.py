@@ -6,7 +6,7 @@ from typing import TypedDict
 import pandas as pd
 from pandas.tseries.holiday import USFederalHolidayCalendar
 
-from src.configuration import DataConfig, VariantConfig, load_data_config
+from src.load_config import DataConfig, VariantConfig, load_data_config
 
 
 def load_frozen_zones(path: Path) -> list[int]:

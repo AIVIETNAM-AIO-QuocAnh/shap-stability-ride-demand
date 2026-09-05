@@ -1,4 +1,4 @@
-from src.configuration import load_data_config, load_model_config
+from src.load_config import load_data_config, load_model_config
 import pandas as pd
 import numpy as np
 import json

@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-from src.configuration import PROJECT_ROOT, DataConfig, SplitConfig, load_data_config
+from src.load_config import PROJECT_ROOT, DataConfig, SplitConfig, load_data_config
 
 
 def load_feature_table(path: Path) -> pd.DataFrame:

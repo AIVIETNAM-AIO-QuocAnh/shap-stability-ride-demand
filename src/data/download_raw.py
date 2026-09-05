@@ -8,7 +8,7 @@ from urllib.request import Request, urlopen
 import pyarrow.parquet as pq
 from tqdm import tqdm
 
-from src.configuration import load_data_config
+from src.load_config import load_data_config
 
 
 MAX_ATTEMPTS = 3
