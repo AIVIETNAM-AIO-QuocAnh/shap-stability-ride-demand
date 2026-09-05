@@ -8,9 +8,10 @@ from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 import numpy as np
 
-from src.utilities import load_config, calculate_metrics, resolve_path
+from src.configuration import load_model_config
+from src.utilities import calculate_metrics
 
-cfg = load_config()
+cfg = load_model_config()
 
 class RunHpo:
     def __init__(self, X_train, y_train, X_test, y_test, model_key):
@@ -21,7 +22,7 @@ class RunHpo:
         self.model_key = model_key # lightgbm or xgboost
 
     def objective(self, trial: optuna.Trial):
-        search_space = cfg["models"]["optuna"][self.model_key]
+        search_space = cfg["hpo"]["search_space"][self.model_key]
 
         common_params = {
             "random_state": cfg["seed"],
@@ -50,7 +51,7 @@ class RunHpo:
         return calculate_metrics("mae", self.y_test, y_pred)
 
     def save_best_params(self, best_params: dict):
-        hpo_dir = resolve_path(cfg, "results_hpo")
+        hpo_dir = cfg["paths"]["results_hpo"]
 
         file_path = hpo_dir / self.model_key / "best_params.json"
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -62,7 +63,7 @@ class RunHpo:
     def run(self):
         sampler = optuna.samplers.TPESampler(seed=cfg["seed"])
         study = optuna.create_study(direction="minimize", sampler=sampler)
-        study.optimize(self.objective, n_trials=cfg["models"]["optuna"]["n_trials"])
+        study.optimize(self.objective, n_trials=cfg["hpo"]["n_trials"])
 
         best_params = study.best_params
         self.save_best_params(best_params)

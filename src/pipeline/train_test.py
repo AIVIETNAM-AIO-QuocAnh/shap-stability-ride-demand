@@ -8,9 +8,10 @@ from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 import joblib
 
-from src.utilities import load_config, resolve_path, calculate_metrics
+from src.configuration import load_model_config
+from src.utilities import calculate_metrics
 
-cfg = load_config()
+cfg = load_model_config()
 
 
 class TrainTest:
@@ -27,7 +28,7 @@ class TrainTest:
         }
 
         if use_tuned:
-            hpo_dir = resolve_path(cfg, "results_hpo")
+            hpo_dir = cfg["paths"]["results_hpo"]
             with open(hpo_dir / self.model_key / "best_params.json") as f:
                 tuned_params = json.load(f)
             self.hyperparams.update(tuned_params)
@@ -53,4 +54,3 @@ class TrainTest:
 
         print(f"Metrics for {self.model_key} on fold {fold}: {self.metrics}")
         return model, self.metrics, y_pred
-
