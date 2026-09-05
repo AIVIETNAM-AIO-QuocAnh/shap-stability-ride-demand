@@ -4,7 +4,7 @@ from itertools import combinations
 from pathlib import Path
 import pandas as pd
 
-from src.configuration import DataConfig, load_data_config
+from src.load_config import DataConfig, load_data_config
 
 
 def load_feature_table(path: Path) -> pd.DataFrame:

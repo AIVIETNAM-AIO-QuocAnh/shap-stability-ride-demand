@@ -13,13 +13,11 @@ dependencies:
   - matplotlib=3.10.1
   - seaborn=0.13.2
   - pillow=11.1.0
-  - pyarrow=19.0.1          # Đọc ghi định dạng Parquet cho dataset lớn của NYC TLC
-  - fastparquet=2024.11.0    # Hỗ trợ engine parquet dự phòng
-  - joblib=1.4.2             # Lưu và nạp model artifacts (.joblib)
+  - pyarrow=19.0.1          # Read and write Parquet for the large NYC TLC dataset
   - pip
   - pip:
       - lightgbm==4.6.0      
       - xgboost==2.1.4       
       - optuna==4.2.1      
-      - shap==0.47.0         # TreeExplainer tính SHAP importance và stability
-      - holidays==0.65       # Tạo feature lịch nghỉ lễ US (is_holiday)
+      - shap==0.47.0         # TreeExplainer SHAP importance and stability
+      - holidays==0.65       # US holiday calendar feature (is_holiday)

@@ -6,7 +6,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-from src.configuration import PROJECT_ROOT, DataConfig, SplitConfig, load_data_config
+from src.load_config import PROJECT_ROOT, DataConfig, SplitConfig, load_data_config
 
 
 EXPECTED_TOP50_KEYS = {

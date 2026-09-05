@@ -73,11 +73,17 @@ class SplitConfig(TypedDict):
     eval_kind: str
 
 
+class ModelingConfig(TypedDict):
+    target_column: str
+    row_key_columns: tuple[str, str]
+
+
 class DataConfig(TypedDict):
     dataset_name: str
     year: int
     months: tuple[str, ...]
     source: SourceConfig
+    modeling: ModelingConfig
     paths: DataPaths
     selection: SelectionConfig
     panel: PanelConfig
@@ -181,6 +187,15 @@ def _integer_tuple(value: object, context: str) -> tuple[int, ...]:
     return tuple(_integer(item, f"{context}[{index}]") for index, item in enumerate(value))
 
 
+def _row_key_columns(value: object, context: str) -> tuple[str, str]:
+    columns = _string_tuple(value, context)
+    if columns != ("pu_location_id", "target_datetime"):
+        raise ValueError(
+            f"{context} must contain exactly ('pu_location_id', 'target_datetime')"
+        )
+    return columns
+
+
 def _load_yaml(path: Path) -> Mapping[str, object]:
     if not path.exists():
         raise FileNotFoundError(f"Configuration file not found: {path}")
@@ -192,6 +207,7 @@ def _load_yaml(path: Path) -> Mapping[str, object]:
 def _parse_data_config(raw: Mapping[str, object]) -> DataConfig:
     dataset = _mapping(_required(raw, "dataset", "data config"), "data config.dataset")
     source_raw = _mapping(_required(raw, "source", "data config"), "data config.source")
+    modeling_raw = _mapping(_required(raw, "modeling", "data config"), "data config.modeling")
     paths_raw = _mapping(_required(raw, "paths", "data config"), "data config.paths")
     selection_raw = _mapping(_required(raw, "selection", "data config"), "data config.selection")
     panel_raw = _mapping(_required(raw, "panel", "data config"), "data config.panel")
@@ -211,6 +227,14 @@ def _parse_data_config(raw: Mapping[str, object]) -> DataConfig:
     normalized_column = _string(
         _required(source_raw, "normalized_zone_column", "data config.source"),
         "data config.source.normalized_zone_column",
+    )
+    target_column = _string(
+        _required(modeling_raw, "target_column", "data config.modeling"),
+        "data config.modeling.target_column",
+    )
+    row_key_columns = _row_key_columns(
+        _required(modeling_raw, "row_key_columns", "data config.modeling"),
+        "data config.modeling.row_key_columns",
     )
 
     data_paths: DataPaths = {
@@ -363,6 +387,10 @@ def _parse_data_config(raw: Mapping[str, object]) -> DataConfig:
             "pickup_zone_column": pickup_column,
             "normalized_zone_column": normalized_column,
             "required_columns": (request_column, pickup_column),
+        },
+        "modeling": {
+            "target_column": target_column,
+            "row_key_columns": row_key_columns,
         },
         "paths": data_paths,
         "selection": {

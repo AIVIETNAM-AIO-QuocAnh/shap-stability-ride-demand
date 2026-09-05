@@ -9,7 +9,7 @@ stability và forecasting performance so với giữ riêng lẻ (Variant A)?
 ## Đánh giá kết quả nghiên cứu
 
 Trả lời theo 3 tiêu chí hoàn thành ở `m03-proposal.pdf` mục 6, dựa trên artifact thực đã chạy
-(pipeline: [src/pipeline/readme.md](src/pipeline/readme.md), tổng hợp:
+(pipeline: [src/pipeline/README.md](src/pipeline/README.md), tổng hợp:
 [src/analysis/readme.md](src/analysis/readme.md), số liệu đầy đủ:
 [results/stats/summary.md](results/stats/summary.md)).
 

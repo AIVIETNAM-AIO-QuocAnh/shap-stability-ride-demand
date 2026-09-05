@@ -1,0 +1,21 @@
+{
+  "feature_perturbation": "tree_path_dependent",
+  "fold": "fold1",
+  "model": "xgboost",
+  "package_versions": {
+    "packages": {
+      "lightgbm": "4.6.0",
+      "numpy": "2.2.6",
+      "optuna": "4.2.1",
+      "pandas": "2.2.3",
+      "shap": "0.47.0",
+      "xgboost": "2.1.4"
+    },
+    "platform": "macOS-15.7.7-arm64-arm-64bit",
+    "python": "3.10.9"
+  },
+  "seed": 42,
+  "stage": "shap",
+  "variant": "B",
+  "zone_sample_size": 100
+}

@@ -9,6 +9,12 @@ source:
   pickup_zone_column: PULocationID
   normalized_zone_column: pu_location_id
 
+modeling:
+  target_column: demand
+  row_key_columns:
+    - pu_location_id
+    - target_datetime
+
 paths:
   raw_dir: data/raw
   monthly_aggregates_dir: data/processed/monthly_agg

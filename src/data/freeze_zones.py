@@ -6,7 +6,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from src.data.aggregate_month import aggregate_month
-from src.configuration import DataConfig, load_data_config
+from src.load_config import DataConfig, load_data_config
 
 
 def run_all_months(config: DataConfig) -> dict[str, Path]:

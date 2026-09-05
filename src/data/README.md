@@ -5,7 +5,7 @@ zone, feature table, correlation evidence và temporal folds cho Pipeline/Model.
 README này mô tả ngắn gọn dữ liệu, lý do xử lý và cách reproduce.
 
 Protocol và paths dùng chung nằm trong `configs/data.yaml`; model/HPO/SHAP settings
-nằm trong `configs/model.yaml`. `src/configuration.py` đọc mỗi file một lần và
+nằm trong `configs/model.yaml`. `src/load_config.py` đọc mỗi file một lần và
 kiểm tra các field cần thiết trước khi pipeline chạy.
 
 ## Dataset overview
@@ -123,7 +123,7 @@ Outputs: `feature_table.csv`, `variant_feature_map.json` và
 
 ```text
 src/
-├── configuration.py                   # shared validated config loaders
+├── load_config.py                     # shared validated config loaders
 └── data/
     ├── download_raw.py
     ├── aggregate_month.py
@@ -192,8 +192,15 @@ Pipeline/Model có thể load một variant như sau:
 ```python
 from src.utilities import load_data
 
-X_train, y_train, X_val, y_val = load_data("fold1", "A")
+data = load_data("fold1", "A")
+X_train = data["X_train"]
+y_train = data["y_train"]
+X_evaluation = data["X_evaluation"]
+y_evaluation = data["y_evaluation"]
 ```
+
+`data["train_keys"]` and `data["evaluation_keys"]` preserve the semantic row
+keys `(pu_location_id, target_datetime)` for keyed predictions and SHAP sampling.
 
 Data role chỉ chuẩn bị và kiểm tra dữ liệu; không tune model, chạy HPO hoặc
 tạo prediction/SHAP results.
