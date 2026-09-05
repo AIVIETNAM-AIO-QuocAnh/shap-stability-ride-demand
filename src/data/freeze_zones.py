@@ -1,129 +1,129 @@
-"""
-Chạy aggregate cho cả 12 tháng của 2025.
-Chọn 50 zone có tổng demand cao nhất trong 01/01-30/06/2025, freeze danh sách.
-"""
+"""Build monthly aggregates and freeze the top 50 zones for January-June."""
 
 import json
-from datetime import datetime
 from pathlib import Path
 import pandas as pd
-from aggregate_month import aggregate_month
+from tqdm import tqdm
 
-# ============ CONFIG ============
-REPO_ROOT = Path(__file__).resolve().parents[2]
-RAW_DATA_DIR = REPO_ROOT / "data/raw"
-AGG_OUTPUT_DIR = REPO_ROOT / "data/processed/monthly_agg"
-FROZEN_DIR = REPO_ROOT / "data/processed/frozen"
+from src.data.aggregate_month import aggregate_month
+from src.configuration import DataConfig, load_data_config
 
-RAW_FILENAME_PATTERN = "fhvhv_tripdata_2025-{month:02d}.csv"
 
-MONTHS_2025 = [f"2025-{m:02d}" for m in range(1, 13)]
-JAN_JUN_MONTHS = [f"2025-{m:02d}" for m in range(1, 7)]
-N_TOP_ZONES = 50
-# ==================================
+def run_all_months(config: DataConfig) -> dict[str, Path]:
+    """Aggregate every required month and return the output paths."""
+    source = config["source"]
+    raw_dir = config["paths"]["raw_dir"]
+    aggregate_dir = config["paths"]["monthly_aggregates_dir"]
+    raw_paths = {
+        month_label: raw_dir / source["filename_pattern"].format(
+            year=config["year"], month=int(month_label[-2:])
+        )
+        for month_label in config["months"]
+    }
+    missing = [month for month, path in raw_paths.items() if not path.exists()]
+    if missing:
+        raise FileNotFoundError(f"Missing raw HVFHV months: {missing}")
 
-def run_all_months() -> dict[str, Path]:
-    """Aggregate lần lượt từng tháng"""
-    agg_paths = {}
-    for m in range(1, 13):
-        month_label = f"2025-{m:02d}"
-        raw_path = RAW_DATA_DIR / RAW_FILENAME_PATTERN.format(month=m)
-
-        if not raw_path.exists():
-            print(f"[{month_label}] LỖI: KHÔNG tìm thấy file: {raw_path}.")
-            continue
-
-        out_path = aggregate_month(raw_path, month_label, AGG_OUTPUT_DIR)
+    agg_paths: dict[str, Path] = {}
+    for month_label, raw_path in tqdm(
+        raw_paths.items(),
+        total=len(raw_paths),
+        desc="Preparing monthly aggregates",
+        unit="month",
+    ):
+        out_path = aggregate_dir / f"agg_{month_label}.csv"
+        if not out_path.exists():
+            out_path = aggregate_month(
+                raw_path,
+                month_label,
+                aggregate_dir,
+                source["request_datetime_column"],
+                source["pickup_zone_column"],
+                source["normalized_zone_column"],
+            )
+        else:
+            tqdm.write(f"Reusing existing monthly aggregate -> {out_path}")
         agg_paths[month_label] = out_path
 
     return agg_paths
 
 
-def select_and_freeze_top50(agg_paths: dict[str, Path]) -> list[int]:
-    """
-    Lấy 50 zone cao nhất trong tổng demand mỗi zone trong 01/01-30/06/2025
-    """
-    missing = [m for m in JAN_JUN_MONTHS if m not in agg_paths]
+def select_and_freeze_top50(agg_paths: dict[str, Path], config: DataConfig) -> list[int]:
+    """Select the 50 zones with the highest demand in January-June 2025."""
+    months = config["months"]
+    selection = config["selection"]
+    missing = [m for m in months if m not in agg_paths]
     if missing:
-        raise RuntimeError(
-            f"Thiếu aggregate của các tháng {missing} trong Jan-Jun -> "
-            f"không thể chọn top-50 zone một cách hợp lệ."
-        )
+        raise RuntimeError(f"Missing monthly aggregates {missing}; cannot freeze zones.")
 
-    jan_jun_frames = [pd.read_csv(agg_paths[m], parse_dates=["hour"]) for m in JAN_JUN_MONTHS]
-    jan_jun_all = pd.concat(jan_jun_frames, ignore_index=True)
-    del jan_jun_frames
+    period_frames = [pd.read_csv(agg_paths[m], parse_dates=["hour"]) for m in months]
+    jan_jun_all = pd.concat(period_frames, ignore_index=True)
+    del period_frames
+    jan_jun_all = jan_jun_all[
+        (jan_jun_all["hour"] >= selection["start"])
+        & (jan_jun_all["hour"] < selection["end_exclusive"])
+    ]
 
-    zone_totals = (
-        jan_jun_all.groupby("pu_location_id")["trip_count"]
-        .sum()
-        .sort_values(ascending=False)
-    )
+    zone_totals = jan_jun_all.groupby("pu_location_id")["trip_count"].sum()
+    zone_totals = zone_totals.rename("total_demand").reset_index()
+    zone_totals = zone_totals.sort_values(
+        ["total_demand", "pu_location_id"], ascending=[False, True]
+    ).reset_index(drop=True)
     del jan_jun_all
 
-    top50 = zone_totals.head(N_TOP_ZONES)
-    top50_ids = top50.index.astype(int).tolist()
+    top50 = zone_totals.head(selection["top_zones"])
+    top50_ids = top50["pu_location_id"].astype(int).tolist()
+    if len(top50_ids) != selection["top_zones"]:
+        raise ValueError(
+            f"Selected {len(top50_ids)} frozen zones; expected {selection['top_zones']}"
+        )
+    if len(set(top50_ids)) != selection["top_zones"]:
+        raise ValueError("Frozen-zone list contains duplicate IDs")
 
     freeze_record = {
-        "frozen_at_utc": datetime.isoformat() + "Z",
-        "selection_period": "2025-01-01 to 2025-06-30",
-        "selection_rule": "top 50 pu_location_id by total request count (demand), Jan-Jun 2025",
-        "n_zones": N_TOP_ZONES,
+        "selection_period": selection["period_label"],
+        "selection_rule": selection["selection_rule"],
+        "n_zones": selection["top_zones"],
         "zone_ids": top50_ids,
-        "zone_total_demand": {int(k): int(v) for k, v in top50.items()},
+        "zone_total_demand": {
+            str(int(row.pu_location_id)): int(row.total_demand)
+            for row in top50.itertuples(index=False)
+        },
     }
 
-    FROZEN_DIR.mkdir(parents=True, exist_ok=True)
-    freeze_path = FROZEN_DIR / "top50_zones_frozen.json"
+    freeze_path = config["paths"]["frozen_zones"]
+    freeze_path.parent.mkdir(parents=True, exist_ok=True)
 
     if freeze_path.exists():
-        raise FileExistsError(
-            f"{freeze_path} đã tồn tại. Danh sách zone đã được freeze trước đó; "
-            f"xóa file thủ công nếu thực sự cần chọn lại."
-        )
+        with freeze_path.open(encoding="utf-8") as stream:
+            existing = json.load(stream)
+        if existing != freeze_record:
+            differing_fields = sorted(
+                key
+                for key in set(existing) | set(freeze_record)
+                if existing.get(key) != freeze_record.get(key)
+            )
+            raise ValueError(
+                "Existing frozen-zone artifact differs from the deterministic "
+                f"selection for fields: {differing_fields}. "
+                "Remove it and regenerate from the current approved inputs."
+            )
+        print(f"Validated existing frozen-zone artifact (exact match) -> {freeze_path}")
+        return top50_ids
 
-    with open(freeze_path, "w") as f:
+    with freeze_path.open("w", encoding="utf-8") as f:
         json.dump(freeze_record, f, indent=2)
 
-    print(f"Đã freeze top-{N_TOP_ZONES} zone -> {freeze_path}")
-    print(f"Top 5 zone theo demand: {top50_ids[:5]}")
+    print(f"Froze top-{selection['top_zones']} zones -> {freeze_path}")
+    print(f"Top five zones by demand: {top50_ids[:5]}")
 
     return top50_ids
 
 
-def sanity_check(agg_paths: dict[str, Path], top50_ids: list[int]):
-    """Kiểm tra nhanh"""
-    print("=== SANITY CHECK ===")
-
-    missing_months = [m for m in MONTHS_2025 if m not in agg_paths]
-    if missing_months:
-        print(f"CẢNH BÁO: Các tháng KHÔNG có aggregate: {missing_months}")
-    else:
-        print("Đủ 12/12 tháng đã được aggregate.")
-
-    total_demand_all_year = 0
-    for month_label, path in sorted(agg_paths.items()):
-        df = pd.read_csv(path)
-        month_total = int(df["trip_count"].sum())
-        total_demand_all_year += month_total
-        n_unique_zones = df["pu_location_id"].nunique()
-        print(
-            f"  {month_label}: {len(df):,} zone-hour rows, "
-            f"{n_unique_zones} zone khác nhau, tổng demand = {month_total:,}"
-        )
-        del df
-
-    print(f"Tổng demand cả năm (toàn bộ zone, chưa lọc top-50): {total_demand_all_year:,}")
-    print(f"Số zone đã freeze: {len(top50_ids)} (phải đúng {N_TOP_ZONES})")
-    assert len(top50_ids) == N_TOP_ZONES, "Số zone freeze không đúng N_TOP_ZONES!"
-    assert len(set(top50_ids)) == N_TOP_ZONES, "Có zone bị trùng trong danh sách freeze!"
-    print("Sanity check PASS.")
-
-
-def main():
-    agg_paths = run_all_months()
-    top50_ids = select_and_freeze_top50(agg_paths)
-    sanity_check(agg_paths, top50_ids)
+def main() -> None:
+    config = load_data_config()
+    agg_paths = run_all_months(config)
+    select_and_freeze_top50(agg_paths, config)
 
 
 if __name__ == "__main__":
