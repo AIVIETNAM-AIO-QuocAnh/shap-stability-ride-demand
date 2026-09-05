@@ -1,0 +1,101 @@
+dataset:
+  name: NYC TLC HVFHV
+  year: 2025
+
+source:
+  base_url: https://d37ci6vzurychx.cloudfront.net/trip-data
+  filename_pattern: fhvhv_tripdata_{year}-{month:02d}.parquet
+  request_datetime_column: request_datetime
+  pickup_zone_column: PULocationID
+  normalized_zone_column: pu_location_id
+
+paths:
+  raw_dir: data/raw
+  monthly_aggregates_dir: data/processed/monthly_agg
+  frozen_zones: data/processed/frozen/top50_zones_frozen.json
+  feature_table: data/processed/feature_table.csv
+  variant_map: data/processed/variant_feature_map.json
+  lag_examples: data/processed/lag_alignment_examples.csv
+  correlation_by_zone: data/processed/correlation_by_zone.csv
+  correlation_summary: data/processed/correlation_summary.csv
+  data_dictionary: data/processed/data_dictionary.md
+  folds_dir: data/folds
+
+selection:
+  start: "2025-01-01T00:00:00"
+  end_exclusive: "2025-07-01T00:00:00"
+  top_zones: 50
+
+panel:
+  start: "2025-01-01T00:00:00"
+  end_exclusive: "2026-01-01T00:00:00"
+  calendar_features:
+    - hour
+    - dayofweek
+    - is_holiday
+  short_lags_hours:
+    - 1
+    - 24
+  weekly_lags_hours:
+    - 168
+    - 336
+    - 504
+  median_feature: median_lag_3w
+  variants:
+    A:
+      weekly_features:
+        - lag_168
+        - lag_336
+        - lag_504
+      description: "Baseline: keep each weekly lag as a separate feature"
+    B:
+      weekly_features:
+        - median_lag_3w
+      description: "Aggregated: represent the three weekly lags with their median"
+    C:
+      weekly_features:
+        - lag_168
+        - median_lag_3w
+      description: "Hybrid: keep the nearest weekly lag and add the median"
+
+correlation:
+  start: "2025-01-22T00:00:00"
+  end_exclusive: "2025-08-01T00:00:00"
+
+splits:
+  hpo:
+    train_start: "2025-01-22T00:00:00"
+    train_end_exclusive: "2025-07-01T00:00:00"
+    eval_start: "2025-07-01T00:00:00"
+    eval_end_exclusive: "2025-08-01T00:00:00"
+    eval_kind: val
+  fold1:
+    train_start: "2025-01-22T00:00:00"
+    train_end_exclusive: "2025-08-01T00:00:00"
+    eval_start: "2025-08-01T00:00:00"
+    eval_end_exclusive: "2025-09-01T00:00:00"
+    eval_kind: val
+  fold2:
+    train_start: "2025-01-22T00:00:00"
+    train_end_exclusive: "2025-09-01T00:00:00"
+    eval_start: "2025-09-01T00:00:00"
+    eval_end_exclusive: "2025-10-01T00:00:00"
+    eval_kind: val
+  fold3:
+    train_start: "2025-01-22T00:00:00"
+    train_end_exclusive: "2025-10-01T00:00:00"
+    eval_start: "2025-10-01T00:00:00"
+    eval_end_exclusive: "2025-11-01T00:00:00"
+    eval_kind: val
+  fold4:
+    train_start: "2025-01-22T00:00:00"
+    train_end_exclusive: "2025-11-01T00:00:00"
+    eval_start: "2025-11-01T00:00:00"
+    eval_end_exclusive: "2025-12-01T00:00:00"
+    eval_kind: val
+  final_test:
+    train_start: "2025-01-22T00:00:00"
+    train_end_exclusive: "2025-12-01T00:00:00"
+    eval_start: "2025-12-01T00:00:00"
+    eval_end_exclusive: "2026-01-01T00:00:00"
+    eval_kind: test

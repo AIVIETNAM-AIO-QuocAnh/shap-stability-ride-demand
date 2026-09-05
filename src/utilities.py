@@ -1,42 +1,26 @@
-from pathlib import Path
 import json
 
-import yaml
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CONFIG = PROJECT_ROOT / "config.yaml"
-
-def load_config(path: str | Path | None = None) -> dict:
-    path = Path(path) if path else DEFAULT_CONFIG
-    with open(path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
-    return cfg
-
-def resolve_path(cfg: dict, key: str) -> Path:
-
-    paths = cfg.get("paths")
-    if not isinstance(paths, dict):
-        raise KeyError("Config is missing the 'paths' section.")
-    if key not in paths:
-        available = ", ".join(sorted(paths)) or "(empty)"
-        raise KeyError(f"Path '{key}' not found in config. Available: {available}")
-
-    return PROJECT_ROOT / paths[key]
-
+from src.configuration import load_data_config
+from src.data.build_panel import add_zone_onehot
 
 def load_data(fold: str, variant: str):
-    with open(PROJECT_ROOT / "data/processed/variant_feature_map.json") as file:
+    """Load one configured temporal fold and variant with stable zone columns."""
+    config = load_data_config()
+    paths = config["paths"]
+    with open(paths["variant_map"]) as file:
         variant_map = json.load(file)
-    with open(PROJECT_ROOT / "data/processed/frozen/top50_zones_frozen.json") as f:
+    with open(paths["frozen_zones"]) as f:
         zone_ids = json.load(f)["zone_ids"]
 
     feature_cols = (
-        variant_map["base_features"]
+        ["pu_location_id"]
+        + variant_map["base_features"]
         + variant_map["variants"][variant]["weekly_features"]
     )
 
-    fold_dir = PROJECT_ROOT / "data/folds" / fold
+    fold_dir = paths["folds_dir"] / fold
     evaluation_file = "test.csv" if fold == "final_test" else "val.csv"
 
     train = pd.read_csv(
@@ -45,16 +29,6 @@ def load_data(fold: str, variant: str):
     evaluation = pd.read_csv(
         fold_dir / evaluation_file, parse_dates=["target_datetime"]
     )
-
-    def add_zone_onehot(df, zone_ids):
-        df = df.copy()
-        df["pu_location_id"] = pd.Categorical(df["pu_location_id"], categories=zone_ids)
-        dummies = pd.get_dummies(df["pu_location_id"], prefix="zone")
-        dummies = dummies.reindex(
-            columns=[f"zone_{zone_id}" for zone_id in zone_ids],
-            fill_value=0,
-        )
-        return pd.concat([df, dummies], axis=1), dummies.columns.tolist()
 
     train, zone_cols = add_zone_onehot(train, zone_ids)
     evaluation, _ = add_zone_onehot(evaluation, zone_ids)

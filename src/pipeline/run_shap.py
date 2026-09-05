@@ -9,9 +9,11 @@ import numpy as np
 import pandas as pd
 import shap
 
-from src.utilities import load_config, load_data, resolve_path
+from src.configuration import load_data_config, load_model_config
+from src.utilities import load_data
 
-cfg = load_config()
+data_cfg = load_data_config()
+model_cfg = load_model_config()
 
 
 class RunShap:
@@ -54,7 +56,7 @@ class RunShap:
         print(f"Saved SHAP importance to: {importance_path}")
 
         # Weekly-group aggregation based on variant
-        variant_map_path = resolve_path(cfg,"data_processed") / "variant_feature_map.json"
+        variant_map_path = data_cfg["paths"]["variant_map"]
         with open(variant_map_path) as f:
             variant_map = json.load(f)
 
@@ -67,7 +69,7 @@ class RunShap:
         print(f"Saved SHAP weekly-group importance to: {weekly_group_path}")
 
     def load_saved_model(self):
-        model_dir = resolve_path(cfg, "results") / self.variant / self.fold / self.model_key
+        model_dir = model_cfg["paths"]["results"] / self.variant / self.fold / self.model_key
         model_path = model_dir / "model.pkl"
 
         if not model_path.exists():
@@ -80,7 +82,7 @@ class RunShap:
         return model
 
     def load_sample_indices(self):
-        sample_path = (resolve_path(cfg, "data_fold") / self.fold/ "sample_indices.csv")
+        sample_path = data_cfg["paths"]["folds_dir"] / self.fold / "sample_indices.csv"
         if not sample_path.exists():
             raise FileNotFoundError(
                 f"Sample indices not found at: {sample_path}. Run main() first."
@@ -106,7 +108,7 @@ class RunShap:
 
         shap_values = explainer(X_sample_model)
 
-        model_dir = resolve_path(cfg, "results") / self.variant / self.fold / self.model_key
+        model_dir = model_cfg["paths"]["results"] / self.variant / self.fold / self.model_key
         self.save_shap_artifacts(shap_values, X_sample_model, model_dir)
         self.save_importance(shap_values, X_sample_model, model_dir)
 
@@ -114,15 +116,15 @@ class RunShap:
 
 def main():
     # chạy main để tạo ra các sample_indices (shap_row_keys) để phân tích shap trên các row này thay vì toàn bộ 
-    for fold in ["fold1", "fold2", "fold3", "fold4","final_test"]:
+    for fold in tuple(name for name in data_cfg["splits"] if name != "hpo"):
         _, _, X_test, _ = load_data(fold=fold, variant="A")
         sample_indices = []
-        rng = np.random.default_rng(cfg["seed"])
+        rng = np.random.default_rng(model_cfg["seed"])
         for _, group in X_test.groupby("pu_location_id", observed=False, sort=False):
-            sample_size = min(cfg["shap"]["zone_sample_size"], len(group))
+            sample_size = min(model_cfg["shap"]["zone_sample_size"], len(group))
             sample_indices.extend(group.sample(n=sample_size, random_state=rng).index)
 
-        sample_path = resolve_path(cfg, "data_fold") / fold / "sample_indices.csv"
+        sample_path = data_cfg["paths"]["folds_dir"] / fold / "sample_indices.csv"
         sample_path.parent.mkdir(parents=True, exist_ok=True)
         pd.DataFrame({"row_index": sample_indices}).to_csv(sample_path, index=False)
         print(f"Saved {len(sample_indices)} sample indices to: {sample_path}")

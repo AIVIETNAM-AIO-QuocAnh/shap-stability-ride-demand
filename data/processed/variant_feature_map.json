@@ -1,6 +1,5 @@
 {
   "base_features": [
-    "pu_location_id",
     "hour",
     "dayofweek",
     "is_holiday",
@@ -14,21 +13,21 @@
         "lag_336",
         "lag_504"
       ],
-      "description": "Baseline: giữ nguyên các weekly lag riêng lẻ"
+      "description": "Baseline: keep each weekly lag as a separate feature"
     },
     "B": {
       "weekly_features": [
         "median_lag_3w"
       ],
-      "description": "Aggregation: gộp ba weekly lag thành một đại diện (median)"
+      "description": "Aggregated: represent the three weekly lags with their median"
     },
     "C": {
       "weekly_features": [
         "lag_168",
         "median_lag_3w"
       ],
-      "description": "Hybrid: giữ tuần gần nhất riêng và thêm median"
+      "description": "Hybrid: keep the nearest weekly lag and add the median"
     }
   },
-  "note": "Mỗi variant dùng chung base_features + weekly_features tương ứng. Ví dụ Variant A: base_features + [lag_168, lag_336, lag_504]."
+  "note": "Each variant uses base_features plus its corresponding weekly_features. Variant A uses base_features + ['lag_168', 'lag_336', 'lag_504']."
 }

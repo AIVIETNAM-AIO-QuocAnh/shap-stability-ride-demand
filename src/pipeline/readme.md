@@ -39,18 +39,18 @@ data qua `load_data(fold, variant)` trong `src/utilities.py` — mỗi lần g�
 
 ## `run_hpo.py` — `RunHpo` (Optuna)
 
-- `objective(trial)`: build params = `config.models[model_key]` (baseline) ghi đè bởi giá trị Optuna
-  suggest theo `config.models.optuna.{model_key}` (list → `suggest_categorical`, dict `{low,high,log}`
+- `objective(trial)`: build params = `model_cfg["models"][model_key]` (baseline) ghi đè bởi giá trị Optuna
+  suggest theo `model_cfg.hpo.search_space.{model_key}` (list → `suggest_categorical`, dict `{low,high,log}`
   → `suggest_float`); train, trả về `MAE` trên validation của split `hpo` — đây là objective để
   Optuna minimize (đúng proposal mục 2.4: tuning chỉ dùng MAE, chỉ Variant A, chỉ split HPO).
-- `run()`: `TPESampler(seed=cfg["seed"])`, số trial = `cfg["models"]["optuna"]["n_trials"]` (= 20).
+- `run()`: `TPESampler(seed=model_cfg["seed"])`, số trial = `model_cfg["hpo"]["n_trials"]` (= 20).
   Lưu `study.best_params` vào `results/hpo/{model_key}/best_params.json`.
-- Search space và baseline config đều đọc từ `config.yaml` (`models.optuna.*`, `models.{model_key}`),
+- Search space và baseline config đều đọc từ `configs/model.yaml` (`hpo.search_space.*`, `models.{model_key}`),
   không hardcode trong code — khớp bảng search space ở proposal mục 2.4.
 
 ## `train_test.py` — `TrainTest`
 
-- Hyperparams = baseline config (`config.yaml → models[model_key]`) + `random_state=seed`; nếu
+- Hyperparams = baseline config (`configs/model.yaml → models[model_key]`) + `random_state=seed`; nếu
   `use_tuned=True` thì ghi đè bằng `results/hpo/{model_key}/best_params.json` (best config đã freeze
   từ bước Optuna, dùng nguyên vẹn cho mọi variant/fold — không tune lại, đúng proposal mục 2.4).
 - `run(fold)`: fit model, predict, tính `mae/rmse/wape` qua `calculate_metrics()` (`src/utilities.py`,
@@ -101,7 +101,6 @@ python -m src.pipeline.run_shap
 python run.py
 ```
 
-Không hardcode đường dẫn: mọi path đọc qua `resolve_path(cfg, key)` (`src/utilities.py`), khai báo
-trong `config.yaml → paths`. Đường dẫn `variant_feature_map.json` trong `src/utilities.py:load_data`
-hiện vẫn hardcode thay vì dùng `paths.variant_map` (đã dùng đúng trong `run_shap.py`) — biết trước,
-chưa refactor.
+Các path được khai báo trong `configs/data.yaml` (data artifacts) và `configs/model.yaml`
+(results). `src/configuration.py` resolve chúng relative to the repository root để mọi thành viên
+có thể reproduce từ project root.

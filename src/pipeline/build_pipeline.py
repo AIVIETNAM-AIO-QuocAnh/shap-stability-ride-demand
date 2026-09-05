@@ -1,15 +1,15 @@
 import json
 import pickle
 from pathlib import Path
-
 import pandas as pd
 
-from src.utilities import load_config, load_data, resolve_path
+from src.configuration import load_model_config
+from src.utilities import load_data
 from src.pipeline.train_test import TrainTest
 from src.pipeline.run_hpo import RunHpo
-
 from src.pipeline.run_shap import RunShap
-cfg = load_config()
+
+cfg = load_model_config()
 model_keys = ["xgboost", "lightgbm"]
 
 
@@ -56,7 +56,7 @@ class BuildPipeline:
 
     def save_artifacts(self, model, metrics, y_pred, y_true, fold, model_key, tuned=True):
         model_dir_name = model_key if tuned else f"{model_key}_baseline"
-        base_path = resolve_path(cfg, "results") / self.variant / fold / model_dir_name
+        base_path = cfg["paths"]["results"] / self.variant / fold / model_dir_name
         base_path.mkdir(parents=True, exist_ok=True)
 
         model_path = base_path / "model.pkl"

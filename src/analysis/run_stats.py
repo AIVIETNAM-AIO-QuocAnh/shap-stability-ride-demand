@@ -1,4 +1,4 @@
-from src.utilities import load_config, resolve_path
+from src.configuration import load_data_config, load_model_config
 import pandas as pd
 import numpy as np
 import json
@@ -9,7 +9,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-cfg = load_config()
+data_cfg = load_data_config()
+model_cfg = load_model_config()
 
 class RunStats:
     def __init__(self, variants=("A","B","C"), models=("xgboost","lightgbm"),
@@ -17,12 +18,12 @@ class RunStats:
         self.variants = variants
         self.models = models
         self.folds = folds
-        self.result_base_path = resolve_path(cfg, "results")
-        self.stats_folder = resolve_path(cfg, "results_stats")
+        self.result_base_path = model_cfg["paths"]["results"]
+        self.stats_folder = model_cfg["paths"]["results_stats"]
         self.stats_folder.mkdir(parents=True, exist_ok=True)
         self.plots_folder = self.stats_folder / "plots"
         self.plots_folder.mkdir(parents=True, exist_ok=True)
-        self.variant_map_file = resolve_path(cfg, "variant_map")
+        self.variant_map_file = data_cfg["paths"]["variant_map"]
         with open(self.variant_map_file, "r") as f:
             self.variant_map = json.load(f)
 
@@ -331,7 +332,7 @@ class RunStats:
         """
         train_sizes = {}
         for fold in self.folds:
-            train_path = resolve_path(cfg, "data_fold") / fold / "train.csv"
+            train_path = data_cfg["paths"]["folds_dir"] / fold / "train.csv"
             with open(train_path, "r") as f:
                 train_sizes[fold] = sum(1 for _ in f) - 1
 
