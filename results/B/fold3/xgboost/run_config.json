@@ -62,26 +62,26 @@
   "model": "xgboost",
   "package_versions": {
     "packages": {
-      "lightgbm": "4.6.0",
-      "numpy": "2.2.6",
-      "optuna": "4.2.1",
-      "pandas": "2.2.3",
-      "shap": "0.47.0",
-      "xgboost": "2.1.4"
+      "lightgbm": "4.7.0",
+      "numpy": "2.4.4",
+      "optuna": "4.9.0",
+      "pandas": "3.0.2",
+      "shap": "0.52.0",
+      "xgboost": "3.3.0"
     },
-    "platform": "macOS-15.7.7-arm64-arm-64bit",
-    "python": "3.10.9"
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "python": "3.12.3"
   },
   "parameters": {
-    "colsample_bytree": 0.7750028331113095,
-    "learning_rate": 0.08441478439540696,
+    "colsample_bytree": 0.8476284204846625,
+    "learning_rate": 0.08127437122868117,
     "max_depth": 8,
-    "min_child_weight": 3,
+    "min_child_weight": 5,
     "n_estimators": 600,
     "n_jobs": -1,
     "objective": "reg:squarederror",
     "random_state": 42,
-    "subsample": 0.7378818937795832,
+    "subsample": 0.8981797737485375,
     "tree_method": "hist"
   },
   "row_key_columns": [
