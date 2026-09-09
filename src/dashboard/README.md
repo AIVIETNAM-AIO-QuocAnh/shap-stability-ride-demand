@@ -5,19 +5,19 @@ trong core pipeline. Đây là công cụ trình bày, nằm **ngoài core scope
 
 ## Cách chạy
 
+Các dependency của dashboard (`streamlit`, `plotly`, `pyshp`, `pyproj`) đã được khai báo trong
+`environment.yaml`. Với checkout mới, tạo environment bằng `conda env create -f environment.yaml`;
+với environment đã có, áp dụng cập nhật bằng `conda env update -f environment.yaml`. Sau đó kích
+hoạt environment và chạy:
+
 ```bash
-source .venv/bin/activate
+conda activate shap-stability-ride-demand
 
 # chỉ cần chạy một lần, sinh zones_50.geojson
-pip install pyshp pyproj
 python -m src.dashboard.build_zone_geojson
 
 streamlit run dashboard_app.py
 ```
-
-`pyshp` và `pyproj` chỉ phục vụ build step. Hai package này **không** được thêm vào
-`environment.yaml` vì file đó khoá môi trường của core experiment theo proposal; dashboard là
-phần mở rộng nên khai báo dependency riêng ở đây.
 
 ## Bố cục: một khung hình, không cuộn
 

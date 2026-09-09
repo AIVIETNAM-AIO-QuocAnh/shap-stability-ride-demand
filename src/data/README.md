@@ -8,12 +8,12 @@ Protocol và paths dùng chung nằm trong `configs/data.yaml`; model/HPO/SHAP s
 nằm trong `configs/model.yaml`. `src/load_config.py` đọc mỗi file một lần và
 kiểm tra các field cần thiết trước khi pipeline chạy.
 
-## Dataset overview
+## Tổng quan dataset
 
 Mỗi raw file là một tháng, dạng Parquet:
 `fhvhv_tripdata_2025-01.parquet` ... `fhvhv_tripdata_2025-12.parquet`.
 
-| Layer | Fields | Mục đích |
+| Tầng | Các field | Mục đích |
 |---|---|---|
 | Raw trip | `request_datetime`, `PULocationID` | Xác định thời điểm request và pickup zone. Đây là hai raw fields duy nhất được dùng. |
 | Monthly aggregate | `pu_location_id`, `hour`, `trip_count` | Đếm số request theo zone và hour, giảm kích thước dữ liệu cho các bước sau. |
@@ -31,33 +31,33 @@ rồi mới filter theo `hour`, vì filename month là pickup-time partition và
 ## Luồng dữ liệu tổng quát
 
 ```text
-12 raw TLC Parquet files (2025-01 ... 2025-12)
+12 raw TLC Parquet file (2025-01 ... 2025-12)
         |
-        | read request_datetime + PULocationID only
+        | chỉ đọc request_datetime + PULocationID
         v
-Monthly zone-hour aggregates
+Monthly zone-hour aggregate
         |
-        | concatenate all 12 files
-        | filter hour in [2025-01-01, 2025-07-01)
+        | nối 12 file
+        | filter hour trong [2025-01-01, 2025-07-01)
         v
-Deterministic frozen Top-50 zones
+Top-50 zone deterministic đã freeze
         |
-        | keep frozen zones and build dense hourly grid
+        | giữ frozen zone và xây dense hourly grid
         v
-Dense panel: 50 zones x 8,760 hours
+Dense panel: 50 zone x 8,760 hour
         |
-        | fill missing demand = 0
-        | add calendar features and past-only lags
-        | drop 504-hour warm-up
+        | điền demand thiếu = 0
+        | thêm calendar feature và lag chỉ dùng quá khứ
+        | loại warm-up 504-hour
         v
 feature_table.csv + variant map + lag examples
         |
-        +--> weekly-lag correlation artifacts
+        +--> weekly-lag correlation artifact
         |
-        +--> HPO/Fold 1-4/final-test inputs
+        +--> input HPO/Fold 1-4/final-test
         |
         v
-Pipeline / Model / Analysis / QA-QC handoff
+Handoff cho Pipeline / Model / Analysis / QA-QC
 ```
 
 Nguyên tắc chính:
@@ -199,8 +199,8 @@ X_evaluation = data["X_evaluation"]
 y_evaluation = data["y_evaluation"]
 ```
 
-`data["train_keys"]` and `data["evaluation_keys"]` preserve the semantic row
-keys `(pu_location_id, target_datetime)` for keyed predictions and SHAP sampling.
+`data["train_keys"]` và `data["evaluation_keys"]` giữ semantic row key
+`(pu_location_id, target_datetime)` cho prediction có key và SHAP sampling.
 
 Data role chỉ chuẩn bị và kiểm tra dữ liệu; không tune model, chạy HPO hoặc
 tạo prediction/SHAP results.

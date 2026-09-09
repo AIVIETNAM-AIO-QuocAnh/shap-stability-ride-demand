@@ -1,7 +1,7 @@
 # shap-stability-ride-demand
 
-AIO Conquer Module 03 Project: SHAP Stability under Correlated Time-Series Features for Hourly
-Zone-Level Ride-Demand Forecasting
+Dự án AIO Conquer Module 03: Độ ổn định của SHAP dưới các feature time-series tương quan cho
+forecasting ride-demand theo zone và hour.
 
 Câu hỏi nghiên cứu chính (`m03-proposal.pdf` mục 1): 3 weekly lag (`lag_168`, `lag_336`, `lag_504`)
 của demand theo giờ NYC tương quan ra sao; SHAP importance của chúng ổn định thế nào qua các fold
@@ -32,7 +32,7 @@ phối mọi kết luận ở mục 2 và 3 dưới đây.
 
 Số liệu đầy đủ: [results/stats/summary.md](results/stats/summary.md). Pipeline:
 [src/pipeline/README.md](src/pipeline/README.md). Tổng hợp:
-[src/analysis/readme.md](src/analysis/readme.md).
+[src/analysis/README.md](src/analysis/README.md).
 
 ## 1. Tương quan giữa 3 weekly lag (proposal mục 6, câu hỏi 1)
 
@@ -175,7 +175,7 @@ phát biểu dừng ở mức mô tả:
 Best config của mỗi model được freeze sau bước này và dùng nguyên vẹn cho A/B/C ở Fold 1–4 và
 final test, không tune lại theo variant hoặc fold.
 
-## Discussion
+## Thảo luận
 
 Trong đúng phạm vi proposal cho phép, ba câu hỏi hoàn thành được trả lời như sau:
 
@@ -276,8 +276,12 @@ proposal. Xem [src/dashboard/README.md](src/dashboard/README.md). Gồm hai tran
 - **Experiment**: trình bày lại đúng các bảng của báo cáo này (mục 1 tới 4 ở trên cộng HPO),
   đọc thẳng từ `results/stats/` nên số luôn khớp.
 
+Dependency của dashboard được khai báo trong `environment.yaml`. Với checkout mới, tạo environment
+chung bằng `conda env create -f environment.yaml`; với environment hiện có, cập nhật bằng
+`conda env update -f environment.yaml`. Sau đó activate environment và chạy dashboard:
+
 ```bash
-pip install pyshp pyproj
+conda activate shap-stability-ride-demand
 python -m src.dashboard.build_zone_geojson
 streamlit run dashboard_app.py
 ```
@@ -289,7 +293,7 @@ streamlit run dashboard_app.py
 | `configs/` | `data.yaml` và `model.yaml`, khoá toàn bộ protocol | (mô tả trong hai readme dưới) |
 | `src/data/` | tải, aggregate, dựng panel, feature, correlation, split fold, QA | [src/data/README.md](src/data/README.md) |
 | `src/pipeline/` | HPO, training, SHAP, artifact writer, QA matrix, canonical summary | [src/pipeline/README.md](src/pipeline/README.md) |
-| `src/analysis/` | tổng hợp `results/` thành bảng bàn giao và `summary.md` | [src/analysis/readme.md](src/analysis/readme.md) |
+| `src/analysis/` | tổng hợp `results/` thành bảng bàn giao và `summary.md` | [src/analysis/README.md](src/analysis/README.md) |
 | `src/test/` | 5 test contract của Pipeline | chạy bằng `python -m unittest src.test.test_pipeline` |
 | `src/heatmap/` | shapefile và lookup NYC taxi zone, dữ liệu tĩnh làm nền bản đồ | [src/heatmap/README.md](src/heatmap/README.md) |
 | `src/dashboard/` | dashboard Streamlit, ngoài core scope | [src/dashboard/README.md](src/dashboard/README.md) |

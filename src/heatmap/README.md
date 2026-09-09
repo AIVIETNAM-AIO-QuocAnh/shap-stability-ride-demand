@@ -75,7 +75,7 @@ Nó chạy **một lần** để:
 Dashboard lúc chạy chỉ đọc file GeoJSON đó, **không cần thư viện GIS nào**.
 
 ```bash
-pip install pyshp pyproj
+conda activate shap-stability-ride-demand
 python -m src.dashboard.build_zone_geojson
 ```
 
