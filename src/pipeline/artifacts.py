@@ -1,4 +1,4 @@
-"""Validated, non-overwriting writers for Pipeline artifacts."""
+"""Writer cho Pipeline artifact đã validate, không ghi đè file hiện có."""
 
 import json
 import pickle
@@ -21,13 +21,13 @@ JsonValue: TypeAlias = str | int | float | bool | None | list["JsonValue"] | dic
 
 
 def _ensure_absent(path: Path) -> None:
-    """Fail before replacing an existing artifact."""
+    """Báo lỗi trước khi thay thế artifact hiện có."""
     if path.exists():
-        raise FileExistsError(f"Refusing to overwrite existing artifact: {path}")
+        raise FileExistsError(f"Từ chối ghi đè artifact đã tồn tại: {path}")
 
 
 def write_json(path: Path, value: Mapping[str, JsonValue]) -> None:
-    """Write one JSON object without replacing an existing file."""
+    """Ghi một JSON object mà không thay thế file hiện có."""
     _ensure_absent(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as stream:
@@ -35,23 +35,23 @@ def write_json(path: Path, value: Mapping[str, JsonValue]) -> None:
 
 
 def load_model_parameters(path: Path) -> ModelParameters:
-    """Read and validate scalar frozen model parameters."""
+    """Đọc và validate scalar parameter của model đã freeze."""
     if not path.is_file():
-        raise FileNotFoundError(f"Frozen model parameters not found: {path}")
+        raise FileNotFoundError(f"Không tìm thấy parameter của model đã freeze: {path}")
     with path.open(encoding="utf-8") as stream:
         value: object = json.load(stream)
     if not isinstance(value, dict):
-        raise ValueError(f"Frozen model parameters must be a JSON object: {path}")
+        raise ValueError(f"Parameter của model đã freeze phải là JSON object: {path}")
     parameters: ModelParameters = {}
     for name, parameter in value.items():
         if not isinstance(name, str) or not isinstance(parameter, (str, int, float, bool)):
-            raise ValueError(f"Frozen model parameters contain an invalid value: {path}")
+            raise ValueError(f"Parameter của model đã freeze chứa giá trị không hợp lệ: {path}")
         parameters[name] = parameter
     return parameters
 
 
 def package_snapshot() -> dict[str, JsonValue]:
-    """Capture runtime versions required to interpret the generated artifacts."""
+    """Ghi nhận runtime version cần để diễn giải artifact đã sinh."""
     packages = ("numpy", "pandas", "lightgbm", "xgboost", "optuna", "shap")
     return {
         "python": platform.python_version(),
@@ -61,9 +61,9 @@ def package_snapshot() -> dict[str, JsonValue]:
 
 
 def save_pickle_model(path: Path, model: ModelEstimator) -> None:
-    """Save a trusted model snapshot using the project-approved pickle format."""
+    """Lưu model snapshot đáng tin cậy theo pickle format đã được project duyệt."""
     if not isinstance(model, (XGBRegressor, LGBMRegressor)):
-        raise TypeError(f"Expected a supported model estimator, got {type(model).__name__}")
+        raise TypeError(f"Kỳ vọng supported model estimator, nhưng nhận {type(model).__name__}")
     _ensure_absent(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("wb") as stream:
@@ -71,18 +71,18 @@ def save_pickle_model(path: Path, model: ModelEstimator) -> None:
 
 
 def load_pickle_model(path: Path) -> ModelEstimator:
-    """Load a trusted project model snapshot."""
+    """Đọc model snapshot đáng tin cậy của project."""
     if not path.is_file():
-        raise FileNotFoundError(f"Model artifact not found: {path}")
+        raise FileNotFoundError(f"Không tìm thấy model artifact: {path}")
     with path.open("rb") as stream:
         model: object = pickle.load(stream)
     if not isinstance(model, (XGBRegressor, LGBMRegressor)):
-        raise TypeError(f"Model artifact is not a supported estimator: {path}")
+        raise TypeError(f"Model artifact không phải supported estimator: {path}")
     return model
 
 
 def save_shap_values(path: Path, values: shap.Explanation) -> None:
-    """Save one SHAP Explanation without replacing an existing artifact."""
+    """Lưu một SHAP Explanation mà không thay thế artifact hiện có."""
     _ensure_absent(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("wb") as stream:
@@ -90,33 +90,33 @@ def save_shap_values(path: Path, values: shap.Explanation) -> None:
 
 
 def load_prediction_metrics(path: Path) -> PredictionMetrics:
-    """Read and validate the three locked prediction metrics."""
+    """Đọc và validate ba prediction metric đã khoá."""
     if not path.is_file():
-        raise FileNotFoundError(f"Prediction metrics not found: {path}")
+        raise FileNotFoundError(f"Không tìm thấy prediction metric: {path}")
     with path.open(encoding="utf-8") as stream:
         value: object = json.load(stream)
     if not isinstance(value, dict) or set(value) != {"mae", "rmse", "wape"}:
-        raise ValueError(f"Prediction metrics must contain exactly mae, rmse, and wape: {path}")
+        raise ValueError(f"Prediction metric phải chứa đúng mae, rmse và wape: {path}")
     metrics: PredictionMetrics = {}
     for name in ("mae", "rmse", "wape"):
         metric = value[name]
         if isinstance(metric, bool) or not isinstance(metric, (int, float)) or not np.isfinite(metric):
-            raise ValueError(f"Prediction metric {name} is not a finite number: {path}")
+            raise ValueError(f"Prediction metric {name} không phải finite number: {path}")
         metrics[name] = float(metric)
     return metrics
 
 
 def load_weekly_group_importance(path: Path) -> float:
-    """Read and validate one weekly-group SHAP importance artifact."""
+    """Đọc và validate một weekly-group SHAP importance artifact."""
     if not path.is_file():
-        raise FileNotFoundError(f"Weekly-group artifact not found: {path}")
+        raise FileNotFoundError(f"Không tìm thấy weekly-group artifact: {path}")
     with path.open(encoding="utf-8") as stream:
         value: object = json.load(stream)
     if not isinstance(value, dict) or set(value) != {"weekly_group_importance"}:
-        raise ValueError(f"Weekly-group artifact has an invalid schema: {path}")
+        raise ValueError(f"Weekly-group artifact có schema không hợp lệ: {path}")
     importance = value["weekly_group_importance"]
     if isinstance(importance, bool) or not isinstance(importance, (int, float)) or not np.isfinite(importance):
-        raise ValueError(f"Weekly-group importance is not a finite number: {path}")
+        raise ValueError(f"Weekly-group importance không phải finite number: {path}")
     return float(importance)
 
 
@@ -127,12 +127,12 @@ def save_prediction_artifacts(
     y_pred: np.ndarray,
     metrics: PredictionMetrics,
 ) -> None:
-    """Write keyed predictions and metrics without replacing existing files."""
+    """Ghi prediction có key và metric mà không thay thế file hiện có."""
     if len(keys) != len(y_true) or len(y_true) != len(y_pred):
-        raise ValueError("Prediction artifacts have inconsistent row counts")
+        raise ValueError("Prediction artifact có số row không nhất quán")
     expected_keys = ["pu_location_id", "target_datetime"]
     if list(keys.columns) != expected_keys:
-        raise ValueError(f"Prediction keys must contain exactly {expected_keys}")
+        raise ValueError(f"Prediction key phải chứa đúng {expected_keys}")
     prediction_frame = keys.copy()
     prediction_frame["y_true"] = np.asarray(y_true)
     prediction_frame["y_pred"] = y_pred
@@ -146,5 +146,5 @@ def save_prediction_artifacts(
 
 
 def write_snapshot(path: Path, snapshot: Mapping[str, JsonValue]) -> None:
-    """Write one validated run configuration snapshot."""
+    """Ghi một run configuration snapshot đã validate."""
     write_json(path, snapshot)

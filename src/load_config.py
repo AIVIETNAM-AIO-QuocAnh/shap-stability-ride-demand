@@ -1,4 +1,4 @@
-"""Load and validate the repository's data and model configuration."""
+"""Đọc và validate configuration data và model của repository."""
 
 from collections.abc import Mapping
 from functools import cache
@@ -130,31 +130,31 @@ class ModelConfig(TypedDict):
 
 def _mapping(value: object, context: str) -> Mapping[str, object]:
     if not isinstance(value, Mapping) or not all(isinstance(key, str) for key in value):
-        raise ValueError(f"{context} must be a mapping with string keys")
+        raise ValueError(f"{context} phải là mapping có key dạng string")
     return value
 
 
 def _required(mapping: Mapping[str, object], key: str, context: str) -> object:
     if key not in mapping:
-        raise ValueError(f"{context} is missing required key '{key}'")
+        raise ValueError(f"{context} thiếu key bắt buộc '{key}'")
     return mapping[key]
 
 
 def _string(value: object, context: str) -> str:
     if not isinstance(value, str) or not value:
-        raise ValueError(f"{context} must be a non-empty string")
+        raise ValueError(f"{context} phải là string không rỗng")
     return value
 
 
 def _integer(value: object, context: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError(f"{context} must be an integer")
+        raise ValueError(f"{context} phải là integer")
     return value
 
 
 def _number(value: object, context: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"{context} must be numeric")
+        raise ValueError(f"{context} phải là giá trị numeric")
     return float(value)
 
 
@@ -162,28 +162,28 @@ def _timestamp(value: object, context: str) -> pd.Timestamp:
     try:
         timestamp = pd.Timestamp(_string(value, context))
     except (TypeError, ValueError) as exc:
-        raise ValueError(f"{context} must be a valid timestamp") from exc
+        raise ValueError(f"{context} phải là timestamp hợp lệ") from exc
     if timestamp.tz is not None:
-        raise ValueError(f"{context} must be timezone-naive")
+        raise ValueError(f"{context} phải là timezone-naive")
     return timestamp
 
 
 def _relative_path(value: object, context: str) -> Path:
     path = Path(_string(value, context))
     if path.is_absolute() or ".." in path.parts:
-        raise ValueError(f"{context} must be a repository-relative path")
+        raise ValueError(f"{context} phải là path tương đối với repository")
     return PROJECT_ROOT / path
 
 
 def _string_tuple(value: object, context: str) -> tuple[str, ...]:
     if not isinstance(value, list):
-        raise ValueError(f"{context} must be a list of strings")
+        raise ValueError(f"{context} phải là list các string")
     return tuple(_string(item, f"{context}[{index}]") for index, item in enumerate(value))
 
 
 def _integer_tuple(value: object, context: str) -> tuple[int, ...]:
     if not isinstance(value, list):
-        raise ValueError(f"{context} must be a list of integers")
+        raise ValueError(f"{context} phải là list các integer")
     return tuple(_integer(item, f"{context}[{index}]") for index, item in enumerate(value))
 
 
@@ -191,14 +191,14 @@ def _row_key_columns(value: object, context: str) -> tuple[str, str]:
     columns = _string_tuple(value, context)
     if columns != ("pu_location_id", "target_datetime"):
         raise ValueError(
-            f"{context} must contain exactly ('pu_location_id', 'target_datetime')"
+            f"{context} phải chứa chính xác ('pu_location_id', 'target_datetime')"
         )
     return columns
 
 
 def _load_yaml(path: Path) -> Mapping[str, object]:
     if not path.exists():
-        raise FileNotFoundError(f"Configuration file not found: {path}")
+        raise FileNotFoundError(f"Không tìm thấy configuration file: {path}")
     with path.open(encoding="utf-8") as stream:
         raw: object = yaml.safe_load(stream)
     return _mapping(raw, str(path))
@@ -257,7 +257,7 @@ def _parse_data_config(raw: Mapping[str, object]) -> DataConfig:
         "data config.selection.top_zones",
     )
     if top_zones <= 0 or selection_end <= selection_start:
-        raise ValueError("data config.selection must contain a positive top_zones and ordered dates")
+        raise ValueError("data config.selection phải có top_zones dương và các date theo thứ tự")
     period_label = f"{selection_start:%Y-%m-%d} to {(selection_end - pd.Timedelta(days=1)):%Y-%m-%d}"
     selection_rule = (
         f"top {top_zones} {normalized_column} by total trip_count where hour is in "
@@ -289,9 +289,9 @@ def _parse_data_config(raw: Mapping[str, object]) -> DataConfig:
         "data config.panel.median_feature",
     )
     if not short_lags or not weekly_lags or any(lag <= 0 for lag in short_lags + weekly_lags):
-        raise ValueError("data config.panel lag lists must contain positive integers")
+        raise ValueError("data config.panel lag lists phải chứa các integer dương")
     if panel_end <= panel_start:
-        raise ValueError("data config.panel dates must be ordered")
+        raise ValueError("Các date trong data config.panel phải theo thứ tự")
 
     variants_raw = _mapping(
         _required(panel_raw, "variants", "data config.panel"), "data config.panel.variants"
@@ -323,7 +323,7 @@ def _parse_data_config(raw: Mapping[str, object]) -> DataConfig:
     for variant_name, variant in variants.items():
         if not set(variant["weekly_features"]).issubset(valid_weekly_features):
             raise ValueError(
-                f"data config.panel.variants.{variant_name}.weekly_features contains an unknown feature"
+                f"data config.panel.variants.{variant_name}.weekly_features chứa feature không xác định"
             )
 
     correlation_start = _timestamp(
@@ -335,11 +335,11 @@ def _parse_data_config(raw: Mapping[str, object]) -> DataConfig:
         "data config.correlation.end_exclusive",
     )
     if correlation_end <= correlation_start:
-        raise ValueError("data config.correlation dates must be ordered")
+        raise ValueError("Các date trong data config.correlation phải theo thứ tự")
 
     expected_split_names = ("hpo", "fold1", "fold2", "fold3", "fold4", "final_test")
     if set(splits_raw) != set(expected_split_names):
-        raise ValueError(f"data config.splits must contain exactly {list(expected_split_names)}")
+        raise ValueError(f"data config.splits phải chứa chính xác {list(expected_split_names)}")
     splits: dict[str, SplitConfig] = {}
     for split_name in expected_split_names:
         split_raw = _mapping(splits_raw[split_name], f"data config.splits.{split_name}")
@@ -364,14 +364,14 @@ def _parse_data_config(raw: Mapping[str, object]) -> DataConfig:
             and split["train_end_exclusive"] == split["eval_start"]
             and split["eval_start"] < split["eval_end_exclusive"]
         ):
-            raise ValueError(f"data config.splits.{split_name} has invalid or non-adjacent windows")
+            raise ValueError(f"data config.splits.{split_name} có window không hợp lệ hoặc không liền kề")
         splits[split_name] = split
 
     warmup_start = panel_start + pd.Timedelta(hours=max(all_lags))
     if splits["hpo"]["train_start"] != warmup_start:
-        raise ValueError("data config.splits.hpo.train_start must equal the panel warm-up boundary")
+        raise ValueError("data config.splits.hpo.train_start phải bằng panel warm-up boundary")
     if splits["final_test"]["eval_end_exclusive"] != panel_end:
-        raise ValueError("data config.splits.final_test.eval_end_exclusive must equal panel.end_exclusive")
+        raise ValueError("data config.splits.final_test.eval_end_exclusive phải bằng panel.end_exclusive")
 
     return {
         "dataset_name": _string(_required(dataset, "name", "data config.dataset"), "data config.dataset.name"),
@@ -419,7 +419,7 @@ def _parse_data_config(raw: Mapping[str, object]) -> DataConfig:
 def _model_scalar(value: object, context: str) -> ModelScalar:
     if isinstance(value, (str, int, float, bool)):
         return value
-    raise ValueError(f"{context} must be a scalar model parameter")
+    raise ValueError(f"{context} phải là scalar model parameter")
 
 
 def _parse_search_space(value: object, context: str) -> SearchSpace:
@@ -428,19 +428,19 @@ def _parse_search_space(value: object, context: str) -> SearchSpace:
     for name, spec in raw.items():
         if isinstance(spec, list):
             if not spec:
-                raise ValueError(f"{context}.{name} must not be empty")
+                raise ValueError(f"{context}.{name} không được rỗng")
             parsed[name] = [_model_scalar(item, f"{context}.{name}") for item in spec]
             continue
         range_raw = _mapping(spec, f"{context}.{name}")
         low = _number(_required(range_raw, "low", f"{context}.{name}"), f"{context}.{name}.low")
         high = _number(_required(range_raw, "high", f"{context}.{name}"), f"{context}.{name}.high")
         if low >= high:
-            raise ValueError(f"{context}.{name} requires low < high")
+            raise ValueError(f"{context}.{name} yêu cầu low < high")
         range_config: SearchRange = {"low": low, "high": high}
         if "log" in range_raw:
             log = range_raw["log"]
             if not isinstance(log, bool):
-                raise ValueError(f"{context}.{name}.log must be boolean")
+                raise ValueError(f"{context}.{name}.log phải là boolean")
             range_config["log"] = log
         parsed[name] = range_config
     return parsed
@@ -486,7 +486,7 @@ def _parse_model_config(raw: Mapping[str, object]) -> ModelConfig:
         "model config.shap.zone_sample_size",
     )
     if n_trials <= 0 or sample_size <= 0:
-        raise ValueError("model config hpo.n_trials and shap.zone_sample_size must be positive")
+        raise ValueError("model config hpo.n_trials và shap.zone_sample_size phải dương")
 
     return {
         "seed": _integer(_required(raw, "seed", "model config"), "model config.seed"),
@@ -499,11 +499,11 @@ def _parse_model_config(raw: Mapping[str, object]) -> ModelConfig:
 
 @cache
 def load_data_config() -> DataConfig:
-    """Load and validate the shared data protocol configuration once per process."""
+    """Đọc và validate data protocol configuration dùng chung một lần mỗi process."""
     return _parse_data_config(_load_yaml(CONFIG_DIR / "data.yaml"))
 
 
 @cache
 def load_model_config() -> ModelConfig:
-    """Load and validate the shared model protocol configuration once per process."""
+    """Đọc và validate model protocol configuration dùng chung một lần mỗi process."""
     return _parse_model_config(_load_yaml(CONFIG_DIR / "model.yaml"))

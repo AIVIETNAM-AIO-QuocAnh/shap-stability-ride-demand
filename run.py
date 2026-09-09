@@ -1,4 +1,4 @@
-"""Command-line entry point for the reproducible Pipeline stages."""
+"""Điểm vào command line cho các stage Pipeline có thể tái lập."""
 
 import argparse
 import logging
@@ -22,33 +22,33 @@ from src.utilities import load_data
 
 
 def _parser() -> argparse.ArgumentParser:
-    """Build the explicit Pipeline subcommand parser."""
-    parser = argparse.ArgumentParser(description="Run the locked SHAP stability pipeline")
+    """Tạo parser cho các subcommand Pipeline được khoá."""
+    parser = argparse.ArgumentParser(description="Chạy Pipeline SHAP stability đã khoá")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    sample = subparsers.add_parser("sample-shap", help="Generate semantic SHAP sample keys")
+    sample = subparsers.add_parser("sample-shap", help="Sinh semantic SHAP sample keys")
     sample.add_argument("fold", choices=CORE_FOLDS)
-    baseline = subparsers.add_parser("baseline-hpo", help="Evaluate one untuned HPO baseline")
+    baseline = subparsers.add_parser("baseline-hpo", help="Đánh giá một HPO baseline chưa tune")
     baseline.add_argument("model", choices=MODELS)
-    hpo = subparsers.add_parser("hpo", help="Run configured Optuna trials")
+    hpo = subparsers.add_parser("hpo", help="Chạy các Optuna trial theo config")
     hpo.add_argument("model", choices=MODELS)
-    tuned = subparsers.add_parser("tuned-hpo", help="Evaluate one frozen HPO configuration")
+    tuned = subparsers.add_parser("tuned-hpo", help="Đánh giá một HPO configuration đã freeze")
     tuned.add_argument("model", choices=MODELS)
-    core = subparsers.add_parser("train-core", help="Train one tuned core model")
+    core = subparsers.add_parser("train-core", help="Train một tuned core model")
     core.add_argument("model", choices=MODELS)
     core.add_argument("variant", choices=VARIANTS)
     core.add_argument("fold", choices=CORE_FOLDS)
-    shap = subparsers.add_parser("shap", help="Generate SHAP artifacts for one core model")
+    shap = subparsers.add_parser("shap", help="Sinh SHAP artifact cho một core model")
     shap.add_argument("model", choices=MODELS)
     shap.add_argument("variant", choices=VARIANTS)
     shap.add_argument("fold", choices=CORE_FOLDS)
-    subparsers.add_parser("check-matrix", help="Validate and write the experiment matrix")
-    subparsers.add_parser("summarize", help="Validate and write canonical summary tables")
-    subparsers.add_parser("all", help="Run all stages, validate, and summarize")
+    subparsers.add_parser("check-matrix", help="Validate và ghi experiment matrix")
+    subparsers.add_parser("summarize", help="Validate và ghi các canonical summary table")
+    subparsers.add_parser("all", help="Chạy mọi stage, validate và tổng hợp")
     return parser
 
 
 def main(argv: list[str]) -> int:
-    """Dispatch one explicit Pipeline subcommand."""
+    """Điều phối một Pipeline subcommand cụ thể."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     arguments = _parser().parse_args(argv)
     command = arguments.command
@@ -73,7 +73,7 @@ def main(argv: list[str]) -> int:
         write_run_matrix()
         summarize_core()
     else:
-        raise ValueError(f"Unsupported command: {command}")
+        raise ValueError(f"Command không được hỗ trợ: {command}")
     return 0
 
 

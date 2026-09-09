@@ -125,7 +125,7 @@ def load_variant_features(variant: str) -> tuple[str, ...]:
     """
     variants = load_data_config()["panel"]["variants"]
     if variant not in variants:
-        raise ValueError(f"Unknown variant '{variant}'; expected one of {sorted(variants)}")
+        raise ValueError(f"Variant không xác định '{variant}'; kỳ vọng một trong {sorted(variants)}")
     return tuple(variants[variant]["weekly_features"])
 
 

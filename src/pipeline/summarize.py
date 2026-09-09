@@ -1,4 +1,4 @@
-"""Create the approved mean/std summaries from validated Pipeline artifacts."""
+"""Tạo summary mean/std đã được duyệt từ Pipeline artifact đã validate."""
 
 from pathlib import Path
 
@@ -10,22 +10,22 @@ from src.pipeline.qa_checks import FOLDS, MODELS, VARIANTS, validate_matrix
 
 
 def _write_csv(path: Path, frame: pd.DataFrame) -> None:
-    """Write one summary table without replacing an existing artifact."""
+    """Ghi một summary table mà không thay thế artifact hiện có."""
     if path.exists():
-        raise FileExistsError(f"Refusing to overwrite existing summary: {path}")
+        raise FileExistsError(f"Từ chối ghi đè summary đã tồn tại: {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
     frame.to_csv(path, index=False)
 
 
 def _ensure_paths_absent(paths: tuple[Path, ...]) -> None:
-    """Fail before writing any summary when one target already exists."""
+    """Báo lỗi trước khi ghi summary nếu một target đã tồn tại."""
     existing = [str(path) for path in paths if path.exists()]
     if existing:
-        raise FileExistsError(f"Refusing to overwrite existing summaries: {existing}")
+        raise FileExistsError(f"Từ chối ghi đè các summary đã tồn tại: {existing}")
 
 
 def _metrics_frame() -> pd.DataFrame:
-    """Load the 30 core metric artifacts into one long table."""
+    """Đọc 30 core metric artifact vào một bảng dài."""
     config = load_model_config()
     rows: list[dict[str, str | float]] = []
     for variant in VARIANTS:
@@ -47,7 +47,7 @@ def _metrics_frame() -> pd.DataFrame:
 
 
 def _hpo_frame() -> pd.DataFrame:
-    """Load baseline and tuned HPO metric artifacts."""
+    """Đọc baseline và tuned HPO metric artifact."""
     config = load_model_config()
     rows: list[dict[str, str | float]] = []
     for model in MODELS:
@@ -67,7 +67,7 @@ def _hpo_frame() -> pd.DataFrame:
 
 
 def _performance_summary(metrics: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate fold1-fold4 metrics and retain final-test columns separately."""
+    """Tổng hợp metric fold1-fold4 và giữ column final-test riêng."""
     cv = metrics[metrics["fold"] != "final_test"]
     aggregated = (
         cv.groupby(["variant", "model"], observed=True)[["mae", "rmse", "wape"]]
@@ -91,7 +91,7 @@ def _performance_summary(metrics: pd.DataFrame) -> pd.DataFrame:
 
 
 def _shap_feature_frame() -> pd.DataFrame:
-    """Load weekly-feature SHAP importance for every core run."""
+    """Đọc weekly-feature SHAP importance cho mọi core run."""
     data_config = load_data_config()
     model_config = load_model_config()
     rows: list[pd.DataFrame] = []
@@ -109,7 +109,7 @@ def _shap_feature_frame() -> pd.DataFrame:
                 frame = pd.read_csv(path)
                 expected = {"feature", "importance"}
                 if set(frame.columns) != expected:
-                    raise ValueError(f"Invalid SHAP importance artifact: {path}")
+                    raise ValueError(f"SHAP importance artifact không hợp lệ: {path}")
                 frame = frame[frame["feature"].isin(weekly_features)].copy()
                 frame["variant"] = variant
                 frame["model"] = model
@@ -119,7 +119,7 @@ def _shap_feature_frame() -> pd.DataFrame:
 
 
 def _group_frame() -> pd.DataFrame:
-    """Load weekly-group SHAP importance for every core run."""
+    """Đọc weekly-group SHAP importance cho mọi core run."""
     config = load_model_config()
     rows: list[dict[str, str | float]] = []
     for variant in VARIANTS:
@@ -139,7 +139,7 @@ def _group_frame() -> pd.DataFrame:
 
 
 def _feature_stability(features: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate weekly-feature importance with sample standard deviation."""
+    """Tổng hợp weekly-feature importance với sample standard deviation."""
     cv = features[features["fold"] != "final_test"]
     summary = (
         cv.groupby(["variant", "model", "feature"], observed=True)["importance"]
@@ -157,7 +157,7 @@ def _feature_stability(features: pd.DataFrame) -> pd.DataFrame:
 
 
 def _group_stability(groups: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate weekly-group importance with sample standard deviation."""
+    """Tổng hợp weekly-group importance với sample standard deviation."""
     cv = groups[groups["fold"] != "final_test"]
     summary = (
         cv.groupby(["variant", "model"], observed=True)["weekly_group_importance"]
@@ -171,7 +171,7 @@ def _group_stability(groups: pd.DataFrame) -> pd.DataFrame:
 
 
 def summarize_core() -> Path:
-    """Validate artifacts and write the canonical Pipeline summary tables."""
+    """Validate artifact và ghi các canonical Pipeline summary table."""
     validate_matrix()
     config = load_model_config()
     stats = config["paths"]["results_stats"]

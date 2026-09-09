@@ -1,4 +1,4 @@
-"""Run the final data QA checks for the Data handoff."""
+"""Chạy các kiểm tra Data QA cuối cho Data handoff."""
 
 from pathlib import Path
 import json
@@ -19,33 +19,33 @@ EXPECTED_TOP50_KEYS = {
 
 
 def fail(message):
-    """Raise AssertionError so QA stops immediately."""
+    """Raise AssertionError để QA dừng ngay lập tức."""
     raise AssertionError(message)
 
 
 def check_exists(path: Path, description: str) -> None:
-    """Require a mandatory file to exist on disk."""
+    """Yêu cầu file bắt buộc tồn tại trên disk."""
     if not path.exists():
-        fail(f"MISSING {description}:\n  {path}")
+        fail(f"THIẾU {description}:\n  {path}")
 
 
 def print_header(title: str) -> None:
-    """Print a section heading to stdout."""
+    """In section heading ra stdout."""
     print("\n" + "=" * 75)
     print(title)
     print("=" * 75)
 
 
 def check_raw_inputs(config: DataConfig) -> None:
-    """Require all raw Parquet files and the two protocol columns."""
-    print_header("1. RAW INPUT QA")
+    """Yêu cầu đủ raw Parquet file và hai protocol column."""
+    print_header("1. QA RAW INPUT")
     source = config["source"]
     raw_dir = config["paths"]["raw_dir"]
     required_columns = set(source["required_columns"])
     try:
         import pyarrow.parquet as parquet
     except ImportError as exc:
-        raise RuntimeError("The project environment is missing pyarrow for Parquet QA") from exc
+        raise RuntimeError("Project environment thiếu pyarrow để thực hiện Parquet QA") from exc
 
     for month_label in config["months"]:
         path = raw_dir / source["filename_pattern"].format(
@@ -54,13 +54,13 @@ def check_raw_inputs(config: DataConfig) -> None:
         check_exists(path, f"raw month {month_label}")
         missing = required_columns - set(parquet.read_schema(path).names)
         if missing:
-            fail(f"{path} is missing raw columns: {sorted(missing)}")
-    print("All 12 raw Parquet files and required columns: PASS")
+            fail(f"{path} thiếu raw column: {sorted(missing)}")
+    print("Đủ 12 raw Parquet file và column bắt buộc: PASS")
 
 
 def check_monthly_aggregates(config: DataConfig) -> pd.DataFrame:
-    """Validate every monthly aggregate and return the combined table."""
-    print_header("2. MONTHLY AGGREGATE QA")
+    """Validate mọi monthly aggregate và trả về table đã gộp."""
+    print_header("2. QA MONTHLY AGGREGATE")
     frames: list[pd.DataFrame] = []
     required_columns = {"pu_location_id", "hour", "trip_count"}
     aggregate_dir = config["paths"]["monthly_aggregates_dir"]
@@ -70,21 +70,21 @@ def check_monthly_aggregates(config: DataConfig) -> pd.DataFrame:
         frame = pd.read_csv(path, parse_dates=["hour"])
         missing = required_columns - set(frame.columns)
         if missing:
-            fail(f"{path} is missing columns: {sorted(missing)}")
+            fail(f"{path} thiếu column: {sorted(missing)}")
         duplicate_count = frame[["pu_location_id", "hour"]].duplicated().sum()
         if duplicate_count > 0:
-            fail(f"{path} contains {duplicate_count:,} duplicate zone-hour rows")
+            fail(f"{path} chứa {duplicate_count:,} zone-hour row duplicate")
         if frame["trip_count"].isna().any() or (frame["trip_count"] < 0).any():
-            fail(f"{path} contains invalid trip_count values")
+            fail(f"{path} chứa giá trị trip_count không hợp lệ")
         frames.append(frame)
     aggregate = pd.concat(frames, ignore_index=True)
-    print(f"Validated 12 monthly aggregates: {len(aggregate):,} zone-hour rows.")
+    print(f"Đã validate 12 monthly aggregate: {len(aggregate):,} zone-hour row.")
     return aggregate
 
 
 def check_top50_frozen(aggregate: pd.DataFrame, config: DataConfig) -> list[int]:
-    """Validate the frozen-zone artifact against an independent recomputation."""
-    print_header("3. TOP-50 FROZEN ZONES QA")
+    """Validate frozen-zone artifact bằng một lần recompute độc lập."""
+    print_header("3. QA TOP-50 FROZEN ZONE")
     top50_path = config["paths"]["frozen_zones"]
     selection = config["selection"]
     check_exists(top50_path, "top50_zones_frozen.json")
@@ -94,65 +94,65 @@ def check_top50_frozen(aggregate: pd.DataFrame, config: DataConfig) -> list[int]
 
     if set(record) != EXPECTED_TOP50_KEYS:
         fail(
-            "top50_zones_frozen.json has an unexpected schema. "
-            f"Observed keys: {sorted(record)}; expected keys: {sorted(EXPECTED_TOP50_KEYS)}"
+            "top50_zones_frozen.json có schema không mong đợi. "
+            f"Key quan sát: {sorted(record)}; key kỳ vọng: {sorted(EXPECTED_TOP50_KEYS)}"
         )
 
     if "zone_ids" not in record:
-        fail("top50_zones_frozen.json is missing 'zone_ids'.")
+        fail("top50_zones_frozen.json thiếu 'zone_ids'.")
 
     zone_ids = record["zone_ids"]
     if not isinstance(zone_ids, list):
-        fail("'zone_ids' must be a list.")
+        fail("'zone_ids' phải là list.")
     if len(zone_ids) != selection["top_zones"]:
-        fail(f"Found {len(zone_ids)} zones; expected {selection['top_zones']}.")
+        fail(f"Phát hiện {len(zone_ids)} zone; kỳ vọng {selection['top_zones']}.")
     if len(set(zone_ids)) != selection["top_zones"]:
-        fail("zone_ids contains duplicate IDs.")
+        fail("zone_ids chứa ID duplicate.")
 
     try:
         zone_ids_int = [int(z) for z in zone_ids]
     except (TypeError, ValueError):
-        fail("At least one zone ID cannot be converted to int.")
+        fail("Có ít nhất một zone ID không thể chuyển thành int.")
 
     if any(z <= 0 for z in zone_ids_int):
-        fail("Frozen-zone list contains pu_location_id <= 0.")
+        fail("Danh sách frozen zone chứa pu_location_id <= 0.")
 
     selection_period = record.get("selection_period")
     if selection_period != selection["period_label"]:
         fail(
-            "selection_period is incorrect.\n"
-            f"Observed : {selection_period}\n"
-            f"Expected : {selection['period_label']}"
+            "selection_period không đúng.\n"
+            f"Quan sát : {selection_period}\n"
+            f"Kỳ vọng : {selection['period_label']}"
         )
 
     if record.get("n_zones") != selection["top_zones"]:
-        fail(f"n_zones = {record.get('n_zones')}; expected {selection['top_zones']}.")
+        fail(f"n_zones = {record.get('n_zones')}; kỳ vọng {selection['top_zones']}.")
 
     if record.get("selection_rule") != selection["selection_rule"]:
         fail(
-            "selection_rule is incorrect.\n"
-            f"Observed : {record.get('selection_rule')}\n"
-            f"Expected : {selection['selection_rule']}"
+            "selection_rule không đúng.\n"
+            f"Quan sát : {record.get('selection_rule')}\n"
+            f"Kỳ vọng : {selection['selection_rule']}"
         )
 
     if "zone_total_demand" not in record:
-        fail("Missing 'zone_total_demand'.")
+        fail("Thiếu 'zone_total_demand'.")
 
     zone_total_demand = record["zone_total_demand"]
     if len(zone_total_demand) != selection["top_zones"]:
-        fail(f"zone_total_demand must contain exactly {selection['top_zones']} zones.")
+        fail(f"zone_total_demand phải chứa đúng {selection['top_zones']} zone.")
 
     demand_zone_ids = {int(z) for z in zone_total_demand.keys()}
     if set(zone_ids_int) != demand_zone_ids:
-        fail("zone_ids and zone_total_demand cover different zones.")
+        fail("zone_ids và zone_total_demand bao phủ các zone khác nhau.")
 
     for zone, demand in zone_total_demand.items():
         try:
             demand = int(demand)
         except (TypeError, ValueError):
-            fail(f"Demand for zone {zone} is not numeric.")
+            fail(f"Demand của zone {zone} không phải numeric.")
         if demand < 0:
-            fail(f"Negative demand for zone {zone}: {demand}")
+            fail(f"Demand âm cho zone {zone}: {demand}")
 
     jan_jun = aggregate[
         (aggregate["hour"] >= selection["start"])
@@ -164,7 +164,7 @@ def check_top50_frozen(aggregate: pd.DataFrame, config: DataConfig) -> list[int]
     )
     recomputed_ids = ranking.head(selection["top_zones"])["pu_location_id"].astype(int).tolist()
     if recomputed_ids != zone_ids_int:
-        fail("Frozen zone IDs do not match the Jan-Jun aggregate ranking.")
+        fail("Frozen zone ID không khớp ranking aggregate Jan-Jun.")
     recomputed_totals = {
         str(int(row.pu_location_id)): int(row.total_demand)
         for row in ranking.head(selection["top_zones"]).itertuples(index=False)
@@ -176,29 +176,29 @@ def check_top50_frozen(aggregate: pd.DataFrame, config: DataConfig) -> list[int]
             for zone in recomputed_totals
         ]
         fail(
-            "Frozen zone_total_demand does not match the Jan-Jun recomputation: "
-            f"{sum(delta != 0 for delta in differences)} zones differ; "
-            f"maximum absolute difference is {max(differences):,}."
+            "Frozen zone_total_demand không khớp recompute Jan-Jun: "
+            f"{sum(delta != 0 for delta in differences)} zone khác nhau; "
+            f"độ lệch tuyệt đối lớn nhất là {max(differences):,}."
         )
 
-    print(f"Frozen zones: {len(zone_ids_int)}")
-    print(f"Selection period: {selection_period}")
-    print("Unique zone_ids: PASS")
-    print("zone_total_demand exact match: PASS")
-    print("Independent Jan-Jun selection recomputation: PASS")
+    print(f"Số frozen zone: {len(zone_ids_int)}")
+    print(f"Khoảng selection: {selection_period}")
+    print("zone_ids unique: PASS")
+    print("zone_total_demand khớp tuyệt đối: PASS")
+    print("Recompute selection Jan-Jun độc lập: PASS")
     print("QA TOP-50 FROZEN PASS")
     return zone_ids_int
 
 
 def load_feature_table(path: Path) -> pd.DataFrame:
-    """Read feature_table.csv from the processed-data directory."""
+    """Đọc feature_table.csv từ processed-data directory."""
     check_exists(path, "feature_table.csv")
     return pd.read_csv(path, parse_dates=["target_datetime"])
 
 
 def check_feature_table(zone_ids: list[int], config: DataConfig) -> pd.DataFrame:
-    """Validate required columns, zones, timestamps, demand, lags, and scope."""
-    print_header("4. FEATURE TABLE QA")
+    """Validate column bắt buộc, zone, timestamp, demand, lag và scope."""
+    print_header("4. QA FEATURE TABLE")
     panel = config["panel"]
     selection = config["selection"]
     df = load_feature_table(config["paths"]["feature_table"])
@@ -210,7 +210,7 @@ def check_feature_table(zone_ids: list[int], config: DataConfig) -> pd.DataFrame
     missing = [c for c in required_columns if c not in df.columns]
     if missing:
         fail(
-            "Feature table is missing columns:\n"
+            "Feature table thiếu column:\n"
             + "\n".join(f"  - {c}" for c in missing)
         )
 
@@ -220,19 +220,19 @@ def check_feature_table(zone_ids: list[int], config: DataConfig) -> pd.DataFrame
     expected_zones = sorted(zone_ids)
     if observed_zones != expected_zones:
         fail(
-            "Zones in feature_table do not match the frozen Top-50.\n"
-            f"Expected: {expected_zones}\n"
-            f"Observed: {observed_zones}"
+            "Zone trong feature_table không khớp frozen Top-50.\n"
+            f"Kỳ vọng: {expected_zones}\n"
+            f"Quan sát: {observed_zones}"
         )
-    print(f"Zones: {len(observed_zones)}")
+    print(f"Số zone: {len(observed_zones)}")
     print("Zone vocabulary = frozen Top-50: PASS")
 
     duplicate_count = (
         df[["pu_location_id", "target_datetime"]].duplicated().sum()
     )
     if duplicate_count > 0:
-        fail(f"Feature table contains {duplicate_count:,} duplicate rows.")
-    print("Unique zone-hour keys: PASS")
+        fail(f"Feature table chứa {duplicate_count:,} row duplicate.")
+    print("Zone-hour key unique: PASS")
 
     actual_start = df["target_datetime"].min()
     actual_end = df["target_datetime"].max()
@@ -240,74 +240,74 @@ def check_feature_table(zone_ids: list[int], config: DataConfig) -> pd.DataFrame
     expected_end = panel["end_exclusive"] - pd.Timedelta(hours=1)
     if actual_start != warmup_start:
         fail(
-            "Feature table starts at the wrong timestamp.\n"
-            f"Observed : {actual_start}\n"
-            f"Expected : {warmup_start}"
+            "Feature table bắt đầu ở timestamp sai.\n"
+            f"Quan sát : {actual_start}\n"
+            f"Kỳ vọng : {warmup_start}"
         )
     if actual_end != expected_end:
         fail(
-            "Feature table ends at the wrong timestamp.\n"
-            f"Observed : {actual_end}\n"
-            f"Expected : {expected_end}"
+            "Feature table kết thúc ở timestamp sai.\n"
+            f"Quan sát : {actual_end}\n"
+            f"Kỳ vọng : {expected_end}"
         )
-    print(f"Target range: {actual_start} -> {actual_end}")
+    print(f"Dải target: {actual_start} -> {actual_end}")
 
     if (df["target_datetime"].dt.minute != 0).any():
-        fail("Some target_datetime values are not on the hour.")
+        fail("Một số target_datetime không nằm đúng đầu hour.")
     if (df["target_datetime"].dt.second != 0).any():
-        fail("Some target_datetime values have second != 0.")
-    print("Target timestamps are aligned to the hour: PASS")
+        fail("Một số target_datetime có second != 0.")
+    print("Target timestamp được căn đúng đầu hour: PASS")
 
     rows_per_zone = df.groupby("pu_location_id").size()
     expected_hours = int((panel["end_exclusive"] - warmup_start) / pd.Timedelta(hours=1))
     if not (rows_per_zone == expected_hours).all():
         bad = rows_per_zone[rows_per_zone != expected_hours]
-        fail(f"Uneven hourly observation counts per zone:\n{bad}")
-    print(f"Rows per zone: {expected_hours:,}: PASS")
+        fail(f"Số hourly observation theo zone không đều:\n{bad}")
+    print(f"Số row mỗi zone: {expected_hours:,}: PASS")
 
     expected_total_rows = selection["top_zones"] * expected_hours
     if len(df) != expected_total_rows:
         fail(
-            f"Feature table has {len(df):,} rows; "
-            f"expected {expected_total_rows:,}."
+            f"Feature table có {len(df):,} row; "
+            f"kỳ vọng {expected_total_rows:,}."
         )
-    print(f"Total rows: {len(df):,}: PASS")
+    print(f"Tổng số row: {len(df):,}: PASS")
 
-    print("Checking hourly continuity by zone...")
+    print("Đang kiểm tra hourly continuity theo zone...")
     for zone, group in df.groupby("pu_location_id"):
         times = group["target_datetime"].sort_values()
         diffs = times.diff().dropna()
         if not (diffs == pd.Timedelta(hours=1)).all():
             bad = diffs[diffs != pd.Timedelta(hours=1)]
-            fail(f"Zone {zone} has an hourly gap:\n{bad.head(10)}")
+            fail(f"Zone {zone} có hourly gap:\n{bad.head(10)}")
     print("Hourly continuity: PASS")
 
     if df["demand"].isna().any():
-        fail("Demand contains NaN.")
+        fail("Demand chứa NaN.")
     if (df["demand"] < 0).any():
-        fail("Demand contains negative values.")
-    print("Demand non-negative / no NaN: PASS")
+        fail("Demand chứa giá trị âm.")
+    print("Demand không âm / không có NaN: PASS")
 
     if df["hour"].isna().any():
-        fail("hour contains NaN.")
+        fail("hour chứa NaN.")
     if not df["hour"].astype(int).between(0, 23).all():
-        fail("hour contains values outside [0, 23].")
+        fail("hour chứa giá trị ngoài [0, 23].")
     if not df["hour"].astype(int).eq(df["target_datetime"].dt.hour).all():
-        fail("hour does not match target_datetime.")
+        fail("hour không khớp target_datetime.")
     dow = df["target_datetime"].dt.dayofweek
     if not df["dayofweek"].astype(int).eq(dow).all():
-        fail("dayofweek does not match target_datetime.")
+        fail("dayofweek không khớp target_datetime.")
     if not df["is_holiday"].isin([0, 1]).all():
-        fail("is_holiday must only contain 0/1.")
-    print("Calendar features: PASS")
+        fail("is_holiday chỉ được chứa 0/1.")
+    print("Calendar feature: PASS")
 
     lag_columns = tuple(f"lag_{lag}" for lag in panel["all_lags_hours"])
     for col in lag_columns:
         if df[col].isna().any():
-            fail(f"{col} contains NaN.")
+            fail(f"{col} chứa NaN.")
         if (df[col] < 0).any():
-            fail(f"{col} contains negative values.")
-    print("Required lag columns / no NaN: PASS")
+            fail(f"{col} chứa giá trị âm.")
+    print("Lag column bắt buộc / không có NaN: PASS")
 
     weekly_columns = [f"lag_{lag}" for lag in panel["weekly_lags_hours"]]
     expected_median = df[weekly_columns].median(axis=1, skipna=False)
@@ -320,10 +320,10 @@ def check_feature_table(zone_ids: list[int], config: DataConfig) -> pd.DataFrame
     ):
         mismatch = actual_median != expected_median
         fail(
-            f"{panel['median_feature']} does not equal the median weekly lag.\n"
-            f"Mismatches: {mismatch.sum():,}"
+            f"{panel['median_feature']} không bằng median weekly lag.\n"
+            f"Số mismatch: {mismatch.sum():,}"
         )
-    print("median_lag_3w correctness: PASS")
+    print("median_lag_3w chính xác: PASS")
 
     forbidden_keywords = [
         "weather", "temperature", "precip", "snow", "neighbor",
@@ -335,7 +335,7 @@ def check_feature_table(zone_ids: list[int], config: DataConfig) -> pd.DataFrame
     ]
     if suspicious:
         fail(
-            "Found columns outside core scope:\n"
+            "Phát hiện column ngoài core scope:\n"
             + "\n".join(f"  - {c}" for c in sorted(set(suspicious)))
         )
     print("Core feature scope: PASS")
@@ -344,8 +344,8 @@ def check_feature_table(zone_ids: list[int], config: DataConfig) -> pd.DataFrame
 
 
 def check_variant_map(config: DataConfig) -> None:
-    """Validate the A/B/C feature contract in variant_feature_map.json."""
-    print_header("5. VARIANT FEATURE MAP QA")
+    """Validate feature contract A/B/C trong variant_feature_map.json."""
+    print_header("5. QA VARIANT FEATURE MAP")
     panel = config["panel"]
     variant_map_path = config["paths"]["variant_map"]
     check_exists(variant_map_path, "variant_feature_map.json")
@@ -354,27 +354,27 @@ def check_variant_map(config: DataConfig) -> None:
         record = json.load(f)
 
     if "base_features" not in record:
-        fail("variant_feature_map.json is missing 'base_features'.")
+        fail("variant_feature_map.json thiếu 'base_features'.")
     if record["base_features"] != list(panel["base_features"]):
         fail(
-            "base_features is incorrect.\n"
-            f"Observed: {record['base_features']}\n"
-            f"Expected: {list(panel['base_features'])}"
+            "base_features không đúng.\n"
+            f"Quan sát: {record['base_features']}\n"
+            f"Kỳ vọng: {list(panel['base_features'])}"
         )
 
     if "variants" not in record:
-        fail("variant_feature_map.json is missing 'variants'.")
+        fail("variant_feature_map.json thiếu 'variants'.")
 
     variants = record["variants"]
     for variant_name, expected in panel["variants"].items():
         if variant_name not in variants:
-            fail(f"Missing Variant {variant_name}.")
+            fail(f"Thiếu Variant {variant_name}.")
         actual_features = variants[variant_name].get("weekly_features")
         if actual_features != list(expected["weekly_features"]):
             fail(
-                f"Variant {variant_name} has wrong weekly features.\n"
-                f"Observed: {actual_features}\n"
-                f"Expected: {list(expected['weekly_features'])}"
+                f"Variant {variant_name} có weekly feature sai.\n"
+                f"Quan sát: {actual_features}\n"
+                f"Kỳ vọng: {list(expected['weekly_features'])}"
             )
 
     print("Variant A: lag_168 + lag_336 + lag_504: PASS")
@@ -384,8 +384,8 @@ def check_variant_map(config: DataConfig) -> None:
 
 
 def check_lag_alignment_examples(config: DataConfig) -> None:
-    """Validate durable lag-alignment evidence from the full panel."""
-    print_header("6. LAG ALIGNMENT QA")
+    """Validate evidence lag-alignment bền vững từ full panel."""
+    print_header("6. QA LAG ALIGNMENT")
     lag_examples_path = config["paths"]["lag_examples"]
     check_exists(lag_examples_path, "lag_alignment_examples.csv")
     examples = pd.read_csv(
@@ -403,20 +403,20 @@ def check_lag_alignment_examples(config: DataConfig) -> None:
     }
     missing = expected_columns - set(examples.columns)
     if missing:
-        fail(f"Lag examples are missing columns: {sorted(missing)}")
+        fail(f"Lag example thiếu column: {sorted(missing)}")
     if len(examples) != 75:
-        fail(f"Expected 75 lag examples, found {len(examples)}")
+        fail(f"Kỳ vọng 75 lag example, nhưng có {len(examples)}")
     if not examples["matches"].eq(True).all():
-        fail("Lag examples contain mismatches")
+        fail("Lag example chứa mismatch")
     source_delta = examples["target_datetime"] - examples["source_datetime"]
     expected_delta = pd.to_timedelta(examples["lag"], unit="h")
     if not source_delta.eq(expected_delta).all():
-        fail("Lag examples contain incorrect source timestamps")
-    print("75 full-panel lag examples and source timestamps: PASS")
+        fail("Lag example chứa source timestamp không đúng")
+    print("75 full-panel lag example và source timestamp: PASS")
 
 
 def get_fold_paths(split_name: str, eval_kind: str, folds_dir: Path) -> tuple[Path, Path]:
-    """Return the train and evaluation CSV paths for one split."""
+    """Trả về path CSV train và evaluation của một split."""
     split_dir = folds_dir / split_name
     return split_dir / "train.csv", split_dir / f"{eval_kind}.csv"
 
@@ -424,7 +424,7 @@ def get_fold_paths(split_name: str, eval_kind: str, folds_dir: Path) -> tuple[Pa
 def load_fold_data(
     split_name: str, split_cfg: SplitConfig, folds_dir: Path
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Read the train and evaluation/test CSV files for one split."""
+    """Đọc file CSV train và evaluation/test của một split."""
     train_path, eval_path = get_fold_paths(
         split_name, split_cfg["eval_kind"], folds_dir
     )
@@ -437,8 +437,8 @@ def load_fold_data(
 
 
 def check_fold_structure(zone_ids: list[int], config: DataConfig) -> dict[str, dict[str, pd.DataFrame]]:
-    """Validate files, columns, zones, windows, and values for every split."""
-    print_header("7. FOLD DATA QA")
+    """Validate file, column, zone, window và value của mọi split."""
+    print_header("7. QA FOLD DATA")
     fold_data = {}
     expected_feature_columns = None
 
@@ -447,28 +447,28 @@ def check_fold_structure(zone_ids: list[int], config: DataConfig) -> dict[str, d
         train, eval_df = load_fold_data(split_name, split_cfg, config["paths"]["folds_dir"])
 
         if len(train) == 0:
-            fail(f"[{split_name}] train.csv is empty.")
+            fail(f"[{split_name}] train.csv rỗng.")
         if len(eval_df) == 0:
-            fail(f"[{split_name}] eval/test is empty.")
+            fail(f"[{split_name}] eval/test rỗng.")
 
         required = {"pu_location_id", "target_datetime", "demand"}
         for name, data in [("train", train), ("eval/test", eval_df)]:
             missing = required - set(data.columns)
             if missing:
                 fail(
-                    f"[{split_name}/{name}] missing columns: "
+                    f"[{split_name}/{name}] thiếu column: "
                     f"{sorted(missing)}"
                 )
 
         train_columns = list(train.columns)
         eval_columns = list(eval_df.columns)
         if train_columns != eval_columns:
-            fail(f"[{split_name}] train and eval/test columns differ.")
+            fail(f"[{split_name}] column train và eval/test khác nhau.")
 
         if expected_feature_columns is None:
             expected_feature_columns = train_columns
         elif train_columns != expected_feature_columns:
-            fail(f"[{split_name}] columns differ from other folds.")
+            fail(f"[{split_name}] column khác với fold khác.")
 
         train_zones = sorted(
             train["pu_location_id"].dropna().astype(int).unique().tolist()
@@ -478,9 +478,9 @@ def check_fold_structure(zone_ids: list[int], config: DataConfig) -> dict[str, d
         )
         expected_zones = sorted(zone_ids)
         if train_zones != expected_zones:
-            fail(f"[{split_name}] train zones != frozen Top-50.")
+            fail(f"[{split_name}] train zone != frozen Top-50.")
         if eval_zones != expected_zones:
-            fail(f"[{split_name}] eval/test zones != frozen Top-50.")
+            fail(f"[{split_name}] eval/test zone != frozen Top-50.")
 
         train_start_expected = split_cfg["train_start"]
         train_end_expected = split_cfg["train_end_exclusive"]
@@ -494,36 +494,36 @@ def check_fold_structure(zone_ids: list[int], config: DataConfig) -> dict[str, d
 
         if train_min != train_start_expected:
             fail(
-                f"[{split_name}] train starts at the wrong time.\n"
-                f"Observed : {train_min}\n"
-                f"Expected : {train_start_expected}"
+                f"[{split_name}] train bắt đầu ở thời điểm sai.\n"
+                f"Quan sát : {train_min}\n"
+                f"Kỳ vọng : {train_start_expected}"
             )
         expected_train_max = train_end_expected - pd.Timedelta(hours=1)
         if train_max != expected_train_max:
             fail(
-                f"[{split_name}] train ends at the wrong time.\n"
-                f"Observed : {train_max}\n"
-                f"Expected : {expected_train_max}"
+                f"[{split_name}] train kết thúc ở thời điểm sai.\n"
+                f"Quan sát : {train_max}\n"
+                f"Kỳ vọng : {expected_train_max}"
             )
         if eval_min != eval_start_expected:
             fail(
-                f"[{split_name}] eval/test starts at the wrong time.\n"
-                f"Observed : {eval_min}\n"
-                f"Expected : {eval_start_expected}"
+                f"[{split_name}] eval/test bắt đầu ở thời điểm sai.\n"
+                f"Quan sát : {eval_min}\n"
+                f"Kỳ vọng : {eval_start_expected}"
             )
         expected_eval_max = eval_end_expected - pd.Timedelta(hours=1)
         if eval_max != expected_eval_max:
             fail(
-                f"[{split_name}] eval/test ends at the wrong time.\n"
-                f"Observed : {eval_max}\n"
-                f"Expected : {expected_eval_max}"
+                f"[{split_name}] eval/test kết thúc ở thời điểm sai.\n"
+                f"Quan sát : {eval_max}\n"
+                f"Kỳ vọng : {expected_eval_max}"
             )
 
         if train_max >= eval_min:
-            fail(f"[{split_name}] train and eval/test overlap.")
+            fail(f"[{split_name}] train và eval/test bị overlap.")
         gap = eval_min - train_max
         if gap != pd.Timedelta(hours=1):
-            fail(f"[{split_name}] train/eval are not adjacent. Gap: {gap}")
+            fail(f"[{split_name}] train/eval không liền kề. Gap: {gap}")
 
         for name, data in [("train", train), ("eval/test", eval_df)]:
             duplicate_count = (
@@ -533,16 +533,16 @@ def check_fold_structure(zone_ids: list[int], config: DataConfig) -> dict[str, d
             )
             if duplicate_count > 0:
                 fail(
-                    f"[{split_name}/{name}] has {duplicate_count:,} "
-                    "duplicate (zone, target_datetime) rows."
+                    f"[{split_name}/{name}] có {duplicate_count:,} "
+                    "row (zone, target_datetime) duplicate."
                 )
             if data["demand"].isna().any():
-                fail(f"[{split_name}/{name}] demand has NaN.")
+                fail(f"[{split_name}/{name}] demand có NaN.")
             if (data["demand"] < 0).any():
-                fail(f"[{split_name}/{name}] demand has negative values.")
+                fail(f"[{split_name}/{name}] demand có giá trị âm.")
 
-        print(f"Train : {len(train):,} rows ({train_min} -> {train_max})")
-        print(f"Eval  : {len(eval_df):,} rows ({eval_min} -> {eval_max})")
+        print(f"Train : {len(train):,} row ({train_min} -> {train_max})")
+        print(f"Eval  : {len(eval_df):,} row ({eval_min} -> {eval_max})")
         print("Zone vocabulary: PASS")
         print("Train/eval temporal separation: PASS")
 
@@ -555,12 +555,12 @@ def check_fold_structure(zone_ids: list[int], config: DataConfig) -> dict[str, d
 def check_temporal_leakage(
     fold_data: dict[str, dict[str, pd.DataFrame]], config: DataConfig
 ) -> None:
-    """Validate cross-fold windows, final-test isolation, and expansion.
+    """Validate cross-fold window, final-test isolation và expansion.
 
-    An earlier fold's evaluation rows reappearing in a later training window
-    is required by the expanding-window design and is not leakage.
+    Evaluation row của fold trước xuất hiện lại trong training window muộn hơn
+    là yêu cầu của expanding-window design và không phải leakage.
     """
-    print_header("8. TEMPORAL LEAKAGE BETWEEN FOLDS QA")
+    print_header("8. QA TEMPORAL LEAKAGE GIỮA CÁC FOLD")
     ordered_splits = tuple(config["splits"])
 
     eval_intervals = [
@@ -575,11 +575,11 @@ def check_temporal_leakage(
         for name_j, start_j, end_j in eval_intervals[i + 1:]:
             if start_i < end_j and start_j < end_i:
                 fail(
-                    "Evaluation windows overlap:\n"
+                    "Evaluation window bị overlap:\n"
                     f"{name_i}: {start_i} -> {end_i}\n"
                     f"{name_j}: {start_j} -> {end_j}"
                 )
-    print("Validation/test windows non-overlapping: PASS")
+    print("Validation/test window không overlap: PASS")
 
     final_test = fold_data["final_test"]["eval"]
     final_test_start = final_test["target_datetime"].min()
@@ -588,9 +588,9 @@ def check_temporal_leakage(
     expected_final_end = config["splits"]["final_test"]["eval_end_exclusive"] - pd.Timedelta(hours=1)
 
     if final_test_start != expected_final_start:
-        fail("Final test does not start at 2025-12-01.")
+        fail("Final test không bắt đầu tại 2025-12-01.")
     if final_test_end != expected_final_end:
-        fail("Final test does not end at 2025-12-31 23:00.")
+        fail("Final test không kết thúc tại 2025-12-31 23:00.")
 
     final_test_start = config["splits"]["final_test"]["eval_start"]
     for split_name in ordered_splits[:-1]:
@@ -600,18 +600,18 @@ def check_temporal_leakage(
         eval_final_period = (eval_df["target_datetime"] >= final_test_start).sum()
         if train_final_period > 0 or eval_final_period > 0:
             fail(
-                f"[{split_name}] December data appears before "
+                f"[{split_name}] dữ liệu December xuất hiện trước "
                 "final_test.\n"
-                f"Train final-test-period rows: {train_final_period:,}\n"
-                f"Eval final-test-period rows : {eval_final_period:,}"
+                f"Train row trong final-test period: {train_final_period:,}\n"
+                f"Eval row trong final-test period : {eval_final_period:,}"
             )
-    print("Final December isolation: PASS")
+    print("Tách riêng December final_test: PASS")
 
     previous_train_end = None
     for split_name in ordered_splits:
         train_end = config["splits"][split_name]["train_end_exclusive"]
         if previous_train_end is not None and train_end < previous_train_end:
-            fail(f"[{split_name}] train window does not expand over time.")
+            fail(f"[{split_name}] train window không mở rộng theo thời gian.")
         previous_train_end = train_end
     print("Expanding training windows: PASS")
 
@@ -619,14 +619,14 @@ def check_temporal_leakage(
 
 
 def main():
-    """Run all QA/QC checks and exit non-zero on failure."""
+    """Chạy toàn bộ QA/QC check và exit non-zero khi thất bại."""
     config = load_data_config()
     print("\n" + "=" * 75)
     print("FINAL DATA QA/QC")
     print("=" * 75)
     print(f"\nRepository:\n{PROJECT_ROOT}")
-    print("\nNOTE:")
-    print("- Raw Parquet schema, monthly aggregates, and full-panel lag examples are checked here.")
+    print("\nGHI CHÚ:")
+    print("- Raw Parquet schema, monthly aggregate và full-panel lag example được kiểm tra tại đây.")
 
     check_raw_inputs(config)
     aggregate = check_monthly_aggregates(config)
@@ -638,17 +638,17 @@ def main():
     check_temporal_leakage(fold_data, config)
 
     print("\n" + "=" * 75)
-    print("ALL FINAL DATA QA/QC CHECKS PASS")
+    print("TOÀN BỘ FINAL DATA QA/QC CHECK ĐỀU PASS")
     print("=" * 75)
-    print("\nChecked:")
-    print("1. Raw Parquet schemas")
-    print("2. Monthly aggregate tables")
+    print("\nĐã kiểm tra:")
+    print("1. Raw Parquet schema")
+    print("2. Monthly aggregate table")
     print("3. top50_zones_frozen.json")
     print("4. feature_table.csv")
     print("5. variant_feature_map.json")
-    print("6. Full-panel lag-alignment examples")
+    print("6. Full-panel lag-alignment example")
     print("7. hpo/fold1/fold2/fold3/fold4/final_test")
-    print("8. Temporal leakage / final-test isolation")
+    print("8. Temporal leakage / tách riêng final_test")
 
 
 if __name__ == "__main__":
@@ -656,7 +656,7 @@ if __name__ == "__main__":
         main()
     except AssertionError as exc:
         print("\n" + "=" * 75)
-        print("QA/QC FAILED")
+        print("QA/QC THẤT BẠI")
         print("=" * 75)
         print(f"\n{exc}\n")
         sys.exit(1)

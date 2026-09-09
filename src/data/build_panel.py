@@ -1,4 +1,4 @@
-"""Build the dense hourly panel and shared A/B/C feature contract."""
+"""Xây dựng dense hourly panel và feature contract A/B/C dùng chung."""
 
 import json
 from pathlib import Path
@@ -13,23 +13,23 @@ def load_frozen_zones(path: Path) -> list[int]:
     with open(path, encoding="utf-8") as f:
         record = json.load(f)
     zone_ids = record["zone_ids"]
-    print(f"Loaded {len(zone_ids)} frozen zones from {path.name}")
+    print(f"Đã đọc {len(zone_ids)} frozen zone từ {path.name}")
     return sorted(zone_ids)
 
 
 def load_full_year_agg(agg_dir: Path, months: tuple[str, ...]) -> pd.DataFrame:
-    """Read all twelve monthly aggregates and remove duplicate zone-hour keys."""
+    """Đọc mười hai monthly aggregate và loại duplicate zone-hour key."""
     frames: list[pd.DataFrame] = []
     for month_label in months:
         path = agg_dir / f"agg_{month_label}.csv"
         if not path.exists():
-            raise FileNotFoundError(f"Missing monthly aggregate: {path}")
+            raise FileNotFoundError(f"Thiếu monthly aggregate: {path}")
         df = pd.read_csv(path, parse_dates=["hour"])
         frames.append(df)
 
     agg_all = pd.concat(frames, ignore_index=True)
     del frames
-    print(f"Combined 12 monthly aggregates: {len(agg_all):,} zone-hour rows.")
+    print(f"Đã gộp 12 monthly aggregate: {len(agg_all):,} zone-hour row.")
 
     n_before = len(agg_all)
     agg_all = (
@@ -39,11 +39,11 @@ def load_full_year_agg(agg_dir: Path, months: tuple[str, ...]) -> pd.DataFrame:
     n_after = len(agg_all)
     if n_before != n_after:
         print(
-            f"Warning: found {n_before - n_after:,} duplicate zone-hour rows across "
-            f"monthly files; summed before merging ({n_before:,} -> {n_after:,})."
+            f"Cảnh báo: phát hiện {n_before - n_after:,} zone-hour row bị duplicate trong "
+            f"các monthly file; đã cộng trước khi merge ({n_before:,} -> {n_after:,})."
         )
     else:
-        print("No duplicate zone-hour keys across monthly files.")
+        print("Không có zone-hour key duplicate giữa các monthly file.")
 
     return agg_all
 
@@ -51,7 +51,7 @@ def load_full_year_agg(agg_dir: Path, months: tuple[str, ...]) -> pd.DataFrame:
 def build_hourly_grid(
     zone_ids: list[int], panel_start: pd.Timestamp, panel_end_exclusive: pd.Timestamp
 ) -> pd.DataFrame:
-    """Build every zone-hour combination in calendar year 2025."""
+    """Xây dựng mọi tổ hợp zone-hour trong calendar year 2025."""
     hours = pd.date_range(
         start=panel_start, end=panel_end_exclusive - pd.Timedelta(hours=1), freq="h"
     )
@@ -60,14 +60,14 @@ def build_hourly_grid(
     ).to_frame(index=False)
 
     print(
-        f"Built dense grid: {len(zone_ids)} zones x {len(hours)} hours "
-        f"= {len(grid):,} rows."
+        f"Đã xây dựng dense grid: {len(zone_ids)} zone x {len(hours)} hour "
+        f"= {len(grid):,} row."
     )
     return grid
 
 
 def merge_demand(grid: pd.DataFrame, agg_all: pd.DataFrame, zone_ids: list[int]) -> pd.DataFrame:
-    """Merge sparse demand into the dense grid and fill missing hours with zero."""
+    """Merge demand thưa vào dense grid và điền zero cho hour bị thiếu."""
     agg_top50 = agg_all[agg_all["pu_location_id"].isin(zone_ids)].rename(
         columns={"hour": "target_datetime", "trip_count": "demand"}
     )
@@ -78,8 +78,8 @@ def merge_demand(grid: pd.DataFrame, agg_all: pd.DataFrame, zone_ids: list[int])
 
     if len(panel) != len(grid):
         raise ValueError(
-            f"Demand merge produced {len(panel):,} rows for a {len(grid):,}-row grid; "
-            "monthly aggregates still contain duplicate zone-hour keys."
+            f"Demand merge tạo {len(panel):,} row cho grid {len(grid):,} row; "
+            "monthly aggregate vẫn chứa zone-hour key duplicate."
         )
 
     n_zero_filled = panel["demand"].isna().sum()
@@ -88,8 +88,8 @@ def merge_demand(grid: pd.DataFrame, agg_all: pd.DataFrame, zone_ids: list[int])
     panel = panel.sort_values(["pu_location_id", "target_datetime"]).reset_index(drop=True)
 
     print(
-        f"Merged demand into dense grid: filled {n_zero_filled:,} zone-hours "
-        f"with zero ({n_zero_filled / len(panel):.1%})."
+        f"Đã merge demand vào dense grid: điền zero cho {n_zero_filled:,} zone-hour "
+        f"({n_zero_filled / len(panel):.1%})."
     )
     return panel
 
@@ -97,7 +97,7 @@ def merge_demand(grid: pd.DataFrame, agg_all: pd.DataFrame, zone_ids: list[int])
 def add_calendar_features(
     panel: pd.DataFrame, panel_start: pd.Timestamp, panel_end_exclusive: pd.Timestamp
 ) -> pd.DataFrame:
-    """Add hour, day-of-week, and US federal holiday features."""
+    """Thêm feature hour, day-of-week và US federal holiday."""
     panel = panel.copy()
     panel["hour"] = panel["target_datetime"].dt.hour.astype("int8")
     panel["dayofweek"] = panel["target_datetime"].dt.dayofweek.astype("int8")
@@ -108,36 +108,36 @@ def add_calendar_features(
     )
     panel["is_holiday"] = panel["target_datetime"].dt.date.isin(holiday_dates).astype("int8")
 
-    print(f"Added calendar features; 2025 US federal holidays: {len(holiday_dates)}.")
+    print(f"Đã thêm calendar feature; số US federal holiday năm 2025: {len(holiday_dates)}.")
     return panel
 
 
 def add_lag_features(panel: pd.DataFrame, all_lags: tuple[int, ...]) -> pd.DataFrame:
-    """Add all protocol lags without mutating the input DataFrame."""
+    """Thêm toàn bộ protocol lag mà không mutate input DataFrame."""
     panel = panel.copy()
     grouped = panel.groupby("pu_location_id")["demand"]
     for lag in all_lags:
         panel[f"lag_{lag}"] = grouped.shift(lag)
 
-    print(f"Added lag features: {[f'lag_{l}' for l in all_lags]}")
+    print(f"Đã thêm lag feature: {[f'lag_{l}' for l in all_lags]}")
     return panel
 
 
 def add_variant_features(
     panel: pd.DataFrame, weekly_lags: tuple[int, ...], median_feature: str
 ) -> pd.DataFrame:
-    """Add the median of the three weekly lags."""
+    """Thêm median của ba weekly lag."""
     panel = panel.copy()
     weekly_columns = [f"lag_{lag}" for lag in weekly_lags]
     panel[median_feature] = panel[weekly_columns].median(axis=1, skipna=False)
-    print(f"Added {median_feature} as the median of the three weekly lags.")
+    print(f"Đã thêm {median_feature} là median của ba weekly lag.")
     return panel
 
 
 def apply_warmup_cutoff(
     panel: pd.DataFrame, all_lags: tuple[int, ...], expected_cutoff: pd.Timestamp
 ) -> pd.DataFrame:
-    """Drop rows that do not have the full 504-hour history."""
+    """Loại row không có đủ lịch sử 504-hour."""
     n_before = len(panel)
     lag_cols = [f"lag_{l}" for l in all_lags]
     panel = panel.dropna(subset=lag_cols).reset_index(drop=True)
@@ -146,11 +146,11 @@ def apply_warmup_cutoff(
     first_valid_date = panel["target_datetime"].min()
     if first_valid_date != expected_cutoff:
         raise ValueError(
-            f"Warm-up cutoff produced {first_valid_date}; expected {expected_cutoff}"
+            f"Warm-up cutoff tạo ra {first_valid_date}; kỳ vọng {expected_cutoff}"
         )
     print(
-        f"Warm-up cutoff: dropped {n_before - n_after:,} rows "
-        f"({n_before:,} -> {n_after:,}); first retained row: {first_valid_date}."
+        f"Warm-up cutoff: đã loại {n_before - n_after:,} row "
+        f"({n_before:,} -> {n_after:,}); row đầu tiên giữ lại: {first_valid_date}."
     )
 
     for lag in all_lags:
@@ -160,23 +160,23 @@ def apply_warmup_cutoff(
 
 
 def sanity_check(panel: pd.DataFrame, zone_ids: list[int]):
-    """Check the final modeling table against the frozen panel contract."""
-    print("=== SANITY CHECK ===")
+    """Kiểm tra modeling table cuối theo panel contract đã freeze."""
+    print("=== KIỂM TRA HỢP LỆ ===")
     if panel["pu_location_id"].nunique() != len(zone_ids):
-        raise ValueError("Final panel does not contain exactly the frozen zones")
+        raise ValueError("Final panel không chứa đúng các frozen zone")
     if panel[["pu_location_id", "target_datetime"]].duplicated().any():
-        raise ValueError("Final panel contains duplicate zone-hour rows")
+        raise ValueError("Final panel chứa zone-hour row duplicate")
     if panel["demand"].min() < 0:
-        raise ValueError("Final panel contains negative demand")
+        raise ValueError("Final panel chứa demand âm")
 
-    print(f"Final rows: {len(panel):,}; zones: {panel['pu_location_id'].nunique()}")
-    print("Sanity check PASS.")
+    print(f"Tổng row cuối: {len(panel):,}; zone: {panel['pu_location_id'].nunique()}")
+    print("Kiểm tra hợp lệ PASS.")
 
 
 def save_variant_map(
     path: Path, base_features: tuple[str, ...], variants: dict[str, VariantConfig]
 ) -> None:
-    """Save the A/B/C feature definitions for downstream training."""
+    """Lưu định nghĩa feature A/B/C cho downstream training."""
     record = {
         "base_features": list(base_features),
         "variants": {
@@ -187,18 +187,18 @@ def save_variant_map(
             for name, variant in variants.items()
         },
         "note": (
-            "Each variant uses base_features plus its corresponding weekly_features. "
-            f"Variant A uses base_features + {list(variants['A']['weekly_features'])}."
+            "Mỗi variant dùng base_features cùng weekly_features tương ứng. "
+            f"Variant A dùng base_features + {list(variants['A']['weekly_features'])}."
         ),
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(record, f, indent=2, ensure_ascii=False)
-    print(f"Saved variant feature map -> {path}")
+    print(f"Đã lưu variant feature map -> {path}")
 
 
 class LagAlignmentRecord(TypedDict):
-    """Source-demand record used to verify lag alignment."""
+    """Record source-demand dùng để verify lag alignment."""
 
     pu_location_id: int
     target_datetime: pd.Timestamp
@@ -210,14 +210,14 @@ class LagAlignmentRecord(TypedDict):
 
 
 def add_zone_onehot(df: pd.DataFrame, zone_ids: list[int]) -> tuple[pd.DataFrame, list[str]]:
-    """One-hot encode frozen zones with a stable column order."""
+    """One-hot encode frozen zone với thứ tự column ổn định."""
     encoded = df.copy()
     if encoded["pu_location_id"].isna().any():
-        raise ValueError("Cannot one-hot encode rows with missing pu_location_id")
+        raise ValueError("Không thể one-hot encode row thiếu pu_location_id")
     observed_ids = set(encoded["pu_location_id"].astype(int).tolist())
     unknown_ids = sorted(observed_ids - set(zone_ids))
     if unknown_ids:
-        raise ValueError(f"Rows contain zone IDs outside the frozen vocabulary: {unknown_ids}")
+        raise ValueError(f"Row chứa zone ID ngoài frozen vocabulary: {unknown_ids}")
     encoded["pu_location_id"] = pd.Categorical(
         encoded["pu_location_id"], categories=zone_ids
     )
@@ -234,7 +234,7 @@ def create_lag_alignment_examples(
     sample_times: tuple[pd.Timestamp, ...],
     output_path: Path,
 ) -> None:
-    """Write lag checks at the warm-up point and split boundaries."""
+    """Ghi các kiểm tra lag tại warm-up point và split boundary."""
     sample_zones = [zone_ids[0], zone_ids[len(zone_ids) // 2], zone_ids[-1]]
     lookup = panel.set_index(["pu_location_id", "target_datetime"])["demand"]
     records: list[LagAlignmentRecord] = []
@@ -245,7 +245,7 @@ def create_lag_alignment_examples(
                 & (panel["target_datetime"] == target_time)
             ]
             if len(row) != 1:
-                raise ValueError(f"Expected exactly one panel row for zone={zone_id}, time={target_time}")
+                raise ValueError(f"Kỳ vọng đúng một panel row cho zone={zone_id}, time={target_time}")
             for lag in all_lags:
                 source_time = target_time - pd.Timedelta(hours=lag)
                 expected = lookup.loc[(zone_id, source_time)]
@@ -266,13 +266,13 @@ def create_lag_alignment_examples(
 
     examples = pd.DataFrame.from_records(records)
     if not examples["matches"].all():
-        raise ValueError("Lag-alignment examples contain a mismatch")
+        raise ValueError("Lag-alignment example chứa mismatch")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     examples.to_csv(output_path, index=False)
 
 
 def build_feature_table(config: DataConfig) -> pd.DataFrame:
-    """Build, validate, and save the Data handoff artifacts."""
+    """Xây dựng, validate và lưu các Data handoff artifact."""
     paths = config["paths"]
     panel_config = config["panel"]
     zone_ids = load_frozen_zones(paths["frozen_zones"])
@@ -310,14 +310,14 @@ def build_feature_table(config: DataConfig) -> pd.DataFrame:
 
     paths["feature_table"].parent.mkdir(parents=True, exist_ok=True)
     panel.to_csv(paths["feature_table"], index=False)
-    print(f"Saved final feature table -> {paths['feature_table']}")
+    print(f"Đã lưu final feature table -> {paths['feature_table']}")
 
     save_variant_map(paths["variant_map"], panel_config["base_features"], panel_config["variants"])
     return panel
 
 
 def main() -> None:
-    """Build the standard Data artifacts from monthly aggregates."""
+    """Xây dựng các Data artifact chuẩn từ monthly aggregate."""
     build_feature_table(load_data_config())
 
 

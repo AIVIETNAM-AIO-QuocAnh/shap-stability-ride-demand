@@ -1,4 +1,4 @@
-"""Build monthly aggregates and freeze the top 50 zones for January-June."""
+"""Xây dựng monthly aggregate và freeze top 50 zone cho January-June."""
 
 import json
 from pathlib import Path
@@ -10,7 +10,7 @@ from src.load_config import DataConfig, load_data_config
 
 
 def run_all_months(config: DataConfig) -> dict[str, Path]:
-    """Aggregate every required month and return the output paths."""
+    """Tổng hợp mọi tháng bắt buộc và trả về output path."""
     source = config["source"]
     raw_dir = config["paths"]["raw_dir"]
     aggregate_dir = config["paths"]["monthly_aggregates_dir"]
@@ -22,13 +22,13 @@ def run_all_months(config: DataConfig) -> dict[str, Path]:
     }
     missing = [month for month, path in raw_paths.items() if not path.exists()]
     if missing:
-        raise FileNotFoundError(f"Missing raw HVFHV months: {missing}")
+        raise FileNotFoundError(f"Thiếu raw HVFHV month: {missing}")
 
     agg_paths: dict[str, Path] = {}
     for month_label, raw_path in tqdm(
         raw_paths.items(),
         total=len(raw_paths),
-        desc="Preparing monthly aggregates",
+        desc="Đang chuẩn bị monthly aggregate",
         unit="month",
     ):
         out_path = aggregate_dir / f"agg_{month_label}.csv"
@@ -42,19 +42,19 @@ def run_all_months(config: DataConfig) -> dict[str, Path]:
                 source["normalized_zone_column"],
             )
         else:
-            tqdm.write(f"Reusing existing monthly aggregate -> {out_path}")
+            tqdm.write(f"Dùng lại monthly aggregate đã có -> {out_path}")
         agg_paths[month_label] = out_path
 
     return agg_paths
 
 
 def select_and_freeze_top50(agg_paths: dict[str, Path], config: DataConfig) -> list[int]:
-    """Select the 50 zones with the highest demand in January-June 2025."""
+    """Chọn 50 zone có demand cao nhất trong January-June 2025."""
     months = config["months"]
     selection = config["selection"]
     missing = [m for m in months if m not in agg_paths]
     if missing:
-        raise RuntimeError(f"Missing monthly aggregates {missing}; cannot freeze zones.")
+        raise RuntimeError(f"Thiếu monthly aggregate {missing}; không thể freeze zone.")
 
     period_frames = [pd.read_csv(agg_paths[m], parse_dates=["hour"]) for m in months]
     jan_jun_all = pd.concat(period_frames, ignore_index=True)
@@ -75,10 +75,10 @@ def select_and_freeze_top50(agg_paths: dict[str, Path], config: DataConfig) -> l
     top50_ids = top50["pu_location_id"].astype(int).tolist()
     if len(top50_ids) != selection["top_zones"]:
         raise ValueError(
-            f"Selected {len(top50_ids)} frozen zones; expected {selection['top_zones']}"
+            f"Đã chọn {len(top50_ids)} frozen zone; kỳ vọng {selection['top_zones']}"
         )
     if len(set(top50_ids)) != selection["top_zones"]:
-        raise ValueError("Frozen-zone list contains duplicate IDs")
+        raise ValueError("Danh sách frozen zone chứa ID duplicate")
 
     freeze_record = {
         "selection_period": selection["period_label"],
@@ -104,18 +104,18 @@ def select_and_freeze_top50(agg_paths: dict[str, Path], config: DataConfig) -> l
                 if existing.get(key) != freeze_record.get(key)
             )
             raise ValueError(
-                "Existing frozen-zone artifact differs from the deterministic "
-                f"selection for fields: {differing_fields}. "
-                "Remove it and regenerate from the current approved inputs."
+                "Frozen-zone artifact hiện tại khác deterministic selection "
+                f"ở các field: {differing_fields}. "
+                "Hãy xoá artifact và sinh lại từ input đã được duyệt."
             )
-        print(f"Validated existing frozen-zone artifact (exact match) -> {freeze_path}")
+        print(f"Đã validate frozen-zone artifact hiện tại (exact match) -> {freeze_path}")
         return top50_ids
 
     with freeze_path.open("w", encoding="utf-8") as f:
         json.dump(freeze_record, f, indent=2)
 
-    print(f"Froze top-{selection['top_zones']} zones -> {freeze_path}")
-    print(f"Top five zones by demand: {top50_ids[:5]}")
+    print(f"Đã freeze top-{selection['top_zones']} zone -> {freeze_path}")
+    print(f"Năm zone có demand cao nhất: {top50_ids[:5]}")
 
     return top50_ids
 

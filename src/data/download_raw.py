@@ -1,4 +1,4 @@
-"""Download and validate the twelve official 2025 HVFHV Parquet files."""
+"""Tải xuống và validate mười hai file HVFHV Parquet chính thức của năm 2025."""
 
 from pathlib import Path
 import logging
@@ -19,9 +19,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 def download_file(url: str, destination: Path) -> Path:
-    """Download one file without replacing an existing destination."""
+    """Tải xuống một file mà không thay thế destination đã tồn tại."""
     if destination.exists():
-        raise FileExistsError(f"Refusing to overwrite existing file: {destination}")
+        raise FileExistsError(f"Từ chối ghi đè file đã tồn tại: {destination}")
 
     partial_path = destination.with_suffix(destination.suffix + ".part")
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -50,7 +50,7 @@ def download_file(url: str, destination: Path) -> Path:
 
             if expected_size is not None and bytes_written != expected_size:
                 raise OSError(
-                    f"Downloaded {bytes_written} bytes but the server declared {expected_size} bytes"
+                    f"Đã tải {bytes_written} byte nhưng server khai báo {expected_size} byte"
                 )
 
             partial_path.replace(destination)
@@ -60,7 +60,7 @@ def download_file(url: str, destination: Path) -> Path:
                 partial_path.unlink()
             if attempt == MAX_ATTEMPTS:
                 raise RuntimeError(
-                    f"Could not download {url} after {MAX_ATTEMPTS} attempts"
+                    f"Không thể tải {url} sau {MAX_ATTEMPTS} lần thử"
                 ) from exc
             LOGGER.warning(
                 "download_attempt_failed",
@@ -68,19 +68,19 @@ def download_file(url: str, destination: Path) -> Path:
             )
             time.sleep(2 ** (attempt - 1))
 
-    raise RuntimeError(f"Download loop ended unexpectedly for {url}")
+    raise RuntimeError(f"Vòng lặp download kết thúc bất ngờ cho {url}")
 
 
 def validate_parquet_schema(path: Path, required_columns: tuple[str, str]) -> None:
-    """Require the raw columns used by the Data pipeline."""
+    """Kiểm tra các raw column được Data pipeline sử dụng."""
     columns = set(pq.read_schema(path).names)
     missing = set(required_columns) - columns
     if missing:
-        raise ValueError(f"{path} is missing required columns: {sorted(missing)}")
+        raise ValueError(f"{path} thiếu column bắt buộc: {sorted(missing)}")
 
 
 def main() -> None:
-    """Download and validate every monthly 2025 HVFHV file."""
+    """Tải xuống và validate mọi file HVFHV tháng của năm 2025."""
     config = load_data_config()
     raw_dir = config["paths"]["raw_dir"]
     source = config["source"]

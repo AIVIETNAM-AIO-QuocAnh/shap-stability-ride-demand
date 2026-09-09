@@ -1,4 +1,4 @@
-"""Train and evaluate the configured tree models."""
+"""Train và đánh giá tree model theo config."""
 
 import logging
 from typing import TypeAlias, TypedDict
@@ -22,7 +22,7 @@ ModelEstimator: TypeAlias = XGBRegressor | LGBMRegressor
 
 
 class PredictionMetrics(TypedDict):
-    """Prediction metrics stored for one evaluation run."""
+    """Prediction metric được lưu cho một evaluation run."""
 
     mae: float
     rmse: float
@@ -30,7 +30,7 @@ class PredictionMetrics(TypedDict):
 
 
 class TrainingResult(TypedDict):
-    """Trained estimator output used by artifact writers and SHAP."""
+    """Output của estimator đã train, được artifact writer và SHAP sử dụng."""
 
     model: ModelEstimator
     metrics: PredictionMetrics
@@ -38,19 +38,19 @@ class TrainingResult(TypedDict):
 
 
 def build_model(model_key: str, parameters: ModelParameters) -> ModelEstimator:
-    """Build one supported estimator from explicit parameters."""
+    """Tạo một supported estimator từ parameter cụ thể."""
     if model_key == "xgboost":
         return XGBRegressor(**parameters)
     if model_key == "lightgbm":
         return LGBMRegressor(**parameters)
-    raise ValueError(f"Unsupported model '{model_key}'; expected xgboost or lightgbm")
+    raise ValueError(f"Model '{model_key}' không được hỗ trợ; kỳ vọng xgboost hoặc lightgbm")
 
 
 def model_parameters(model_key: str, tuned_parameters: ModelParameters | None) -> ModelParameters:
-    """Merge baseline parameters with an explicit frozen parameter set."""
+    """Gộp baseline parameter với bộ parameter đã freeze được chỉ định rõ."""
     config = load_model_config()
     if model_key not in config["models"]:
-        raise ValueError(f"Unsupported model '{model_key}'; expected xgboost or lightgbm")
+        raise ValueError(f"Model '{model_key}' không được hỗ trợ; kỳ vọng xgboost hoặc lightgbm")
     parameters: ModelParameters = {
         "random_state": config["seed"],
         **config["models"][model_key],
@@ -66,7 +66,7 @@ def train_and_evaluate(
     tuned_parameters: ModelParameters | None,
     fold: str,
 ) -> TrainingResult:
-    """Fit one model and calculate all locked prediction metrics."""
+    """Fit một model và tính toàn bộ prediction metric đã khoá."""
     parameters = model_parameters(model_key, tuned_parameters)
     model = build_model(model_key, parameters)
     model.fit(data["X_train"], data["y_train"])

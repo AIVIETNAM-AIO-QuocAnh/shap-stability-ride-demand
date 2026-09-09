@@ -1,4 +1,4 @@
-"""Validate the complete Pipeline artifact matrix before analysis."""
+"""Validate đầy đủ Pipeline artifact matrix trước analysis."""
 
 import json
 from pathlib import Path
@@ -25,7 +25,7 @@ METRIC_ATOL = 1e-7
 
 
 class MatrixRow(TypedDict):
-    """One expected experiment unit and its artifact status."""
+    """Một experiment unit dự kiến và trạng thái artifact của nó."""
 
     stage: str
     model: str
@@ -36,7 +36,7 @@ class MatrixRow(TypedDict):
 
 
 def _required_artifacts(stage: str) -> tuple[str, ...]:
-    """Return the artifact names required for one matrix stage."""
+    """Trả về tên artifact bắt buộc cho một matrix stage."""
     if stage == "hpo":
         return ("best_params.json", "trials.csv", "run_config.json")
     if stage in ("baseline_hpo", "tuned_hpo"):
@@ -54,11 +54,11 @@ def _required_artifacts(stage: str) -> tuple[str, ...]:
             "shap_weekly_group.json",
             "shap_config.json",
         )
-    raise ValueError(f"Unsupported matrix stage: {stage}")
+    raise ValueError(f"Matrix stage không được hỗ trợ: {stage}")
 
 
 def _path_for(stage: str, model: str, variant: str, fold: str) -> Path:
-    """Resolve one stage's canonical artifact directory."""
+    """Xác định canonical artifact directory của một stage."""
     config = load_model_config()
     if stage == "hpo":
         return config["paths"]["results_hpo"] / model
@@ -69,7 +69,7 @@ def _path_for(stage: str, model: str, variant: str, fold: str) -> Path:
 
 
 def _matrix_rows() -> list[MatrixRow]:
-    """Build status rows for the two HPO modes and 30 core units."""
+    """Tạo status row cho hai HPO mode và 30 core unit."""
     rows: list[MatrixRow] = []
     for model in MODELS:
         for stage in ("hpo", "baseline_hpo", "tuned_hpo"):
@@ -106,7 +106,7 @@ def _matrix_rows() -> list[MatrixRow]:
 
 
 def _validate_trials() -> None:
-    """Require exactly the configured number of complete Optuna trials."""
+    """Yêu cầu đúng số complete Optuna trial theo config."""
     config = load_model_config()
     for model in MODELS:
         path = config["paths"]["results_hpo"] / model / "trials.csv"
@@ -115,13 +115,13 @@ def _validate_trials() -> None:
         trials = pd.read_csv(path)
         expected = config["hpo"]["n_trials"]
         if len(trials) != expected:
-            raise ValueError(f"{path} contains {len(trials)} trials; expected {expected}")
+            raise ValueError(f"{path} chứa {len(trials)} trial; kỳ vọng {expected}")
         if set(trials["state"].astype(str)) != {"COMPLETE"}:
-            raise ValueError(f"{path} contains a non-COMPLETE trial state")
+            raise ValueError(f"{path} chứa trial có state không phải COMPLETE")
 
 
 def _validate_sample_keys() -> None:
-    """Require deterministic semantic sample-key shape for every core fold."""
+    """Yêu cầu semantic sample-key shape deterministic cho mọi core fold."""
     data_config = load_data_config()
     model_config = load_model_config()
     zone_ids = load_frozen_zone_ids(data_config)
@@ -138,29 +138,29 @@ def _validate_sample_keys() -> None:
             validate="one_to_one",
         )
         if not joined["_merge"].eq("both").all():
-            raise ValueError(f"{fold} contains SHAP keys absent from the evaluation rows")
+            raise ValueError(f"{fold} chứa SHAP key không có trong evaluation row")
         if len(sample_keys) != expected_rows:
-            raise ValueError(f"{fold} has {len(sample_keys)} SHAP rows; expected {expected_rows}")
+            raise ValueError(f"{fold} có {len(sample_keys)} SHAP row; kỳ vọng {expected_rows}")
         if sample_keys[["pu_location_id", "target_datetime"]].duplicated().any():
-            raise ValueError(f"{fold} contains duplicate SHAP semantic keys")
+            raise ValueError(f"{fold} chứa SHAP semantic key duplicate")
         counts = sample_keys["pu_location_id"].value_counts()
         if set(counts.index) != set(zone_ids) or not counts.eq(model_config["shap"]["zone_sample_size"]).all():
-            raise ValueError(f"{fold} does not contain the configured rows per frozen zone")
+            raise ValueError(f"{fold} không có đúng số row theo frozen zone như config")
 
 
 def _validate_prediction(directory: Path, fold: str, variant: str) -> None:
-    """Validate keyed prediction rows and recompute their three metrics."""
+    """Validate prediction row có key và recompute ba metric."""
     data = load_data(fold, variant)
     prediction_path = directory / "y_pred.csv"
     metrics_path = directory / "metrics.json"
     predictions = pd.read_csv(prediction_path, parse_dates=["target_datetime"])
     expected_columns = ["pu_location_id", "target_datetime", "y_true", "y_pred"]
     if list(predictions.columns) != expected_columns:
-        raise ValueError(f"{prediction_path} must contain exactly {expected_columns}")
+        raise ValueError(f"{prediction_path} phải chứa đúng {expected_columns}")
     expected_keys = data["evaluation_keys"].reset_index(drop=True)
     actual_keys = predictions[["pu_location_id", "target_datetime"]]
     if not actual_keys.equals(expected_keys):
-        raise ValueError(f"{prediction_path} keys do not match the configured evaluation rows")
+        raise ValueError(f"Key của {prediction_path} không khớp evaluation row theo config")
     metrics = load_prediction_metrics(metrics_path)
     calculated = {
         "mae": mean_absolute_error(predictions["y_true"], predictions["y_pred"]),
@@ -175,13 +175,13 @@ def _validate_prediction(directory: Path, fold: str, variant: str) -> None:
             float(value), expected, rtol=METRIC_RTOL, atol=METRIC_ATOL
         ):
             raise ValueError(
-                f"{metrics_path} has inconsistent {name}: stored={value}, "
+                f"{metrics_path} có {name} không nhất quán: stored={value}, "
                 f"calculated={expected}, rtol={METRIC_RTOL}, atol={METRIC_ATOL}"
             )
 
 
 def _validate_core_contract() -> None:
-    """Validate all core predictions, snapshots, and frozen model signatures."""
+    """Validate mọi core prediction, snapshot và model signature đã freeze."""
     signatures: dict[str, tuple[str, ...]] = {}
     for variant in VARIANTS:
         for fold in FOLDS:
@@ -191,27 +191,27 @@ def _validate_core_contract() -> None:
                 with (directory / "run_config.json").open(encoding="utf-8") as stream:
                     snapshot: object = json.load(stream)
                 if not isinstance(snapshot, dict) or snapshot.get("stage") != "core":
-                    raise ValueError(f"{directory / 'run_config.json'} is not a core snapshot")
+                    raise ValueError(f"{directory / 'run_config.json'} không phải core snapshot")
                 if (
                     snapshot.get("model") != model
                     or snapshot.get("variant") != variant
                     or snapshot.get("fold") != fold
                 ):
-                    raise ValueError(f"{directory / 'run_config.json'} identifies the wrong run")
+                    raise ValueError(f"{directory / 'run_config.json'} xác định sai run")
                 feature_columns = snapshot.get("feature_columns")
                 if not isinstance(feature_columns, list) or "pu_location_id" in feature_columns:
-                    raise ValueError(f"{directory / 'run_config.json'} exposes raw pu_location_id")
+                    raise ValueError(f"{directory / 'run_config.json'} để lộ raw pu_location_id")
                 parameters = snapshot.get("parameters")
                 if not isinstance(parameters, dict):
-                    raise ValueError(f"{directory / 'run_config.json'} has no parameter snapshot")
+                    raise ValueError(f"{directory / 'run_config.json'} không có parameter snapshot")
                 signature = tuple(f"{key}={parameters[key]}" for key in sorted(parameters))
                 signatures.setdefault(model, signature)
                 if signatures[model] != signature:
-                    raise ValueError(f"Frozen parameters differ across core runs for {model}")
+                    raise ValueError(f"Frozen parameter khác nhau giữa các core run của {model}")
 
 
 def _validate_hpo_contract() -> None:
-    """Validate keyed predictions for both HPO evaluation modes."""
+    """Validate prediction có key cho cả hai HPO evaluation mode."""
     for model in MODELS:
         load_model_parameters(_path_for("hpo", model, "A", "hpo") / "best_params.json")
         for stage in ("baseline_hpo", "tuned_hpo"):
@@ -219,12 +219,12 @@ def _validate_hpo_contract() -> None:
 
 
 def validate_matrix() -> pd.DataFrame:
-    """Validate expected artifact presence, semantics, metrics, and frozen parameters."""
+    """Validate artifact cần có, semantics, metric và frozen parameter."""
     rows = pd.DataFrame(_matrix_rows())
     incomplete = rows[rows["status"] != "complete"]
     if not incomplete.empty:
         raise FileNotFoundError(
-            "Incomplete Pipeline artifact matrix: "
+            "Pipeline artifact matrix chưa đầy đủ: "
             + "; ".join(
                 f"{row.stage}:{row.variant}/{row.fold}/{row.model} missing {row.missing_artifacts}"
                 for row in incomplete.itertuples()
@@ -238,11 +238,11 @@ def validate_matrix() -> pd.DataFrame:
 
 
 def write_run_matrix() -> Path:
-    """Validate and write the canonical experiment matrix once."""
+    """Validate và ghi canonical experiment matrix một lần."""
     config = load_model_config()
     path = config["paths"]["results"] / "run_matrix.csv"
     if path.exists():
-        raise FileExistsError(f"Refusing to overwrite existing matrix: {path}")
+        raise FileExistsError(f"Từ chối ghi đè matrix đã tồn tại: {path}")
     matrix = validate_matrix()
     path.parent.mkdir(parents=True, exist_ok=True)
     matrix.to_csv(path, index=False)

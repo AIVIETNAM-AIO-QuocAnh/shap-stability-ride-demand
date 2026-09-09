@@ -1,4 +1,4 @@
-"""Pure orchestration functions for the configured Pipeline stages."""
+"""Các pure orchestration function cho stage Pipeline theo config."""
 
 import logging
 from itertools import product
@@ -43,7 +43,7 @@ def _snapshot(
     data: ModelData,
     parameters: dict[str, str | int | float | bool],
 ) -> dict[str, JsonValue]:
-    """Build one auditable run configuration snapshot."""
+    """Tạo một run configuration snapshot có thể audit."""
     data_config = load_data_config()
     model_config = load_model_config()
     split = data_config["splits"][fold]
@@ -77,7 +77,7 @@ def _save_training_run(
     result: TrainingResult,
     parameters: dict[str, str | int | float | bool],
 ) -> None:
-    """Persist one model, keyed prediction, metrics, and snapshot."""
+    """Lưu một model, prediction có key, metric và snapshot."""
     save_pickle_model(directory / "model.pkl", result["model"])
     save_prediction_artifacts(
         directory,
@@ -93,9 +93,9 @@ def _save_training_run(
 
 
 def run_hpo_stage(model_key: str) -> None:
-    """Run auditable Variant A HPO for one model."""
+    """Chạy HPO Variant A có thể audit cho một model."""
     if model_key not in MODELS:
-        raise ValueError(f"Unknown model '{model_key}'")
+        raise ValueError(f"Model không xác định '{model_key}'")
     data = load_data("hpo", "A")
     run_hpo(model_key, data)
 
@@ -106,9 +106,9 @@ def _save_hpo_evaluation(
     stage: str,
     directory_name: str,
 ) -> None:
-    """Evaluate one explicitly selected HPO configuration."""
+    """Đánh giá một HPO configuration được chọn rõ ràng."""
     if model_key not in MODELS:
-        raise ValueError(f"Unknown model '{model_key}'")
+        raise ValueError(f"Model không xác định '{model_key}'")
     data = load_data("hpo", "A")
     model_config = load_model_config()
     result = train_and_evaluate(model_key=model_key, data=data, tuned_parameters=tuned_parameters, fold="hpo")
@@ -126,14 +126,14 @@ def _save_hpo_evaluation(
 
 
 def run_baseline_hpo(model_key: str) -> None:
-    """Evaluate one baseline model on the HPO split."""
+    """Đánh giá một baseline model trên HPO split."""
     _save_hpo_evaluation(model_key, None, "baseline_hpo", f"{model_key}_baseline")
 
 
 def run_tuned_hpo(model_key: str) -> None:
-    """Evaluate one frozen HPO model on the HPO split."""
+    """Đánh giá một HPO model đã freeze trên HPO split."""
     if model_key not in MODELS:
-        raise ValueError(f"Unknown model '{model_key}'")
+        raise ValueError(f"Model không xác định '{model_key}'")
     model_config = load_model_config()
     tuned_parameters = load_model_parameters(
         model_config["paths"]["results_hpo"] / model_key / "best_params.json"
@@ -142,13 +142,13 @@ def run_tuned_hpo(model_key: str) -> None:
 
 
 def run_core_stage(model_key: str, variant: str, fold: str) -> None:
-    """Train and persist one tuned model-variant-fold combination."""
+    """Train và lưu một tổ hợp tuned model-variant-fold."""
     if model_key not in MODELS:
-        raise ValueError(f"Unknown model '{model_key}'")
+        raise ValueError(f"Model không xác định '{model_key}'")
     if variant not in VARIANTS:
-        raise ValueError(f"Unknown variant '{variant}'")
+        raise ValueError(f"Variant không xác định '{variant}'")
     if fold not in CORE_FOLDS:
-        raise ValueError(f"Unknown core fold '{fold}'")
+        raise ValueError(f"Core fold không xác định '{fold}'")
     data = load_data(fold, variant)
     model_config = load_model_config()
     frozen = load_model_parameters(
@@ -169,21 +169,21 @@ def run_core_stage(model_key: str, variant: str, fold: str) -> None:
 
 
 def run_shap_stage(model_key: str, variant: str, fold: str) -> None:
-    """Run SHAP for one existing core model artifact."""
+    """Chạy SHAP cho một core model artifact hiện có."""
     if model_key not in MODELS or variant not in VARIANTS or fold not in CORE_FOLDS:
-        raise ValueError(f"Invalid SHAP selection: model={model_key}, variant={variant}, fold={fold}")
+        raise ValueError(f"SHAP selection không hợp lệ: model={model_key}, variant={variant}, fold={fold}")
     data = load_data(fold, variant)
     run_shap(fold, variant, model_key, data)
 
 
 def generate_all_sample_keys() -> None:
-    """Generate semantic SHAP sample keys for every core fold."""
+    """Sinh semantic SHAP sample key cho mọi core fold."""
     for fold in CORE_FOLDS:
         save_sample_keys(fold, load_data(fold, "A"))
 
 
 def run_all_stages() -> None:
-    """Run sampling, HPO, baseline, core training, and SHAP in protocol order."""
+    """Chạy sampling, HPO, baseline, core training và SHAP theo đúng protocol order."""
     generate_all_sample_keys()
     for model_key in MODELS:
         run_hpo_stage(model_key)
@@ -193,7 +193,7 @@ def run_all_stages() -> None:
     for variant, fold, model_key in tqdm(
         core_runs,
         total=len(VARIANTS) * len(CORE_FOLDS) * len(MODELS),
-        desc="Core training and SHAP",
+        desc="Core training và SHAP",
         unit="run",
     ):
         run_core_stage(model_key, variant, fold)

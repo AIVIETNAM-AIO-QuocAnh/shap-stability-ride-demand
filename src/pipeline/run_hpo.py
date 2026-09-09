@@ -1,4 +1,4 @@
-"""Optuna HPO for the locked Variant A HPO split."""
+"""Optuna HPO cho Variant A HPO split đã khoá."""
 
 import logging
 from pathlib import Path
@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 def _suggest_parameters(trial: optuna.Trial, model_key: str) -> ModelParameters:
-    """Resolve the configured categorical and numeric search parameters."""
+    """Xác định categorical và numeric search parameter theo config."""
     config = load_model_config()
     search_space = config["hpo"]["search_space"].get(model_key)
     if search_space is None:
-        raise ValueError(f"No HPO search space configured for model '{model_key}'")
+        raise ValueError(f"Model '{model_key}' chưa có HPO search space trong config")
     tuned: ModelParameters = {}
     for name, specification in search_space.items():
         if isinstance(specification, list):
@@ -34,14 +34,14 @@ def _suggest_parameters(trial: optuna.Trial, model_key: str) -> ModelParameters:
                 log=specification.get("log", False),
             )
         else:
-            raise ValueError(f"Unsupported HPO specification for {model_key}.{name}")
+            raise ValueError(f"HPO specification không được hỗ trợ cho {model_key}.{name}")
     return tuned
 
 
 def _objective(
     trial: optuna.Trial, data: ModelData, model_key: str
 ) -> float:
-    """Train one trial and return MAE on the locked July evaluation window."""
+    """Train một trial và trả về MAE trên July evaluation window đã khoá."""
     tuned = _suggest_parameters(trial, model_key)
     model = build_model(model_key, model_parameters(model_key, tuned))
     model.fit(data["X_train"], data["y_train"])
@@ -49,7 +49,7 @@ def _objective(
 
 
 def _trial_rows(study: optuna.Study) -> list[dict[str, JsonValue]]:
-    """Convert the complete Optuna trial history to validated CSV records."""
+    """Chuyển toàn bộ Optuna trial history thành CSV record đã validate."""
     rows: list[dict[str, JsonValue]] = []
     for trial in study.trials:
         row: dict[str, JsonValue] = {
@@ -63,10 +63,10 @@ def _trial_rows(study: optuna.Study) -> list[dict[str, JsonValue]]:
 
 
 def run_hpo(model_key: str, data: ModelData) -> ModelParameters:
-    """Run exactly the configured HPO study and persist auditable evidence."""
+    """Chạy đúng HPO study theo config và lưu evidence có thể audit."""
     config = load_model_config()
     if model_key not in config["models"]:
-        raise ValueError(f"Unsupported model '{model_key}'; expected xgboost or lightgbm")
+        raise ValueError(f"Model '{model_key}' không được hỗ trợ; kỳ vọng xgboost hoặc lightgbm")
     sampler = optuna.samplers.TPESampler(seed=config["seed"])
     study = optuna.create_study(direction="minimize", sampler=sampler)
     study.optimize(
@@ -76,8 +76,8 @@ def run_hpo(model_key: str, data: ModelData) -> ModelParameters:
     )
     if len(study.trials) != config["hpo"]["n_trials"]:
         raise RuntimeError(
-            f"HPO for {model_key} produced {len(study.trials)} trials; "
-            f"expected {config['hpo']['n_trials']}"
+            f"HPO cho {model_key} tạo {len(study.trials)} trial; "
+            f"kỳ vọng {config['hpo']['n_trials']}"
         )
 
     output_dir: Path = config["paths"]["results_hpo"] / model_key
@@ -91,7 +91,7 @@ def run_hpo(model_key: str, data: ModelData) -> ModelParameters:
     )
     trials_path = output_dir / "trials.csv"
     if trials_path.exists():
-        raise FileExistsError(f"Refusing to overwrite existing artifact: {trials_path}")
+        raise FileExistsError(f"Từ chối ghi đè artifact đã tồn tại: {trials_path}")
     pd.DataFrame(_trial_rows(study)).to_csv(trials_path, index=False)
     write_json(
         output_dir / "run_config.json",

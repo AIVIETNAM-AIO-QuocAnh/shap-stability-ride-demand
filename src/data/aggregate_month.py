@@ -1,4 +1,4 @@
-"""Aggregate one official HVFHV Parquet file by pickup zone and hour."""
+"""Tổng hợp một file HVFHV Parquet chính thức theo pickup zone và hour."""
 
 from pathlib import Path
 import pandas as pd
@@ -11,20 +11,20 @@ def aggregate_month(
     pickup_zone_column: str,
     normalized_zone_column: str,
 ) -> Path:
-    """Write one monthly aggregate after validating the raw schema."""
+    """Ghi một monthly aggregate sau khi validate raw schema."""
     if filepath.suffix != ".parquet":
-        raise ValueError(f"Input must be a Parquet file, received: {filepath}")
+        raise ValueError(f"Input phải là file Parquet, nhưng nhận được: {filepath}")
 
     output_path = output_dir / f"agg_{month_label}.csv"
     if output_path.exists():
-        raise FileExistsError(f"Refusing to overwrite existing aggregate: {output_path}")
+        raise FileExistsError(f"Từ chối ghi đè aggregate đã tồn tại: {output_path}")
 
     raw_columns = [request_datetime_column, pickup_zone_column]
     df = pd.read_parquet(filepath, columns=raw_columns)
     if df[raw_columns].isna().any().any():
         missing_counts = df[raw_columns].isna().sum()
         raise ValueError(
-            f"{filepath} contains missing required values: {missing_counts.to_dict()}"
+            f"{filepath} chứa giá trị bắt buộc bị thiếu: {missing_counts.to_dict()}"
         )
 
     df = df.rename(columns={pickup_zone_column: normalized_zone_column})
@@ -43,7 +43,7 @@ def aggregate_month(
     agg.to_csv(output_path, index=False)
 
     print(
-        f"[{month_label}] raw={len(df):,}, zone-hour={len(agg):,}, "
+        f"[{month_label}] raw row={len(df):,}, zone-hour row={len(agg):,}, "
         f"demand={agg['trip_count'].sum():,}, output={output_path}"
     )
     return output_path

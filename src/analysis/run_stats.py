@@ -110,8 +110,8 @@ class RunStats:
         )
         if len(shap_long_df) != expected_rows:
             raise ValueError(
-                f"Expected {expected_rows} weekly-lag SHAP rows but got {len(shap_long_df)}. "
-                "Check that weekly_features in variant_map match the feature names in shap_importance.csv."
+                f"Kỳ vọng {expected_rows} weekly-lag SHAP row nhưng nhận {len(shap_long_df)}. "
+                "Kiểm tra weekly_features trong variant_map có khớp tên feature trong shap_importance.csv không."
             )
 
         return shap_long_df
@@ -533,7 +533,7 @@ class RunStats:
             correlation_df, performance_aggregated_df, feature_stability_df, group_stability_df
         )
 
-        print(f"Stats written to: {self.stats_folder}")
+        print(f"Đã ghi stats vào: {self.stats_folder}")
         print(f"Summary: {summary_path}")
 
         return performance_aggregated_df, feature_stability_df, group_stability_df

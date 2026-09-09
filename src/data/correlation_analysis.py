@@ -1,4 +1,4 @@
-"""Compute and validate weekly-lag correlation evidence."""
+"""Tính và validate evidence về correlation của weekly lag."""
 
 from itertools import combinations
 from pathlib import Path
@@ -8,28 +8,28 @@ from src.load_config import DataConfig, load_data_config
 
 
 def load_feature_table(path: Path) -> pd.DataFrame:
-    """Read the generated feature table."""
+    """Đọc feature table đã sinh."""
     df = pd.read_csv(path, parse_dates=["target_datetime"])
-    print(f"Loaded feature table: {len(df):,} rows, {df['pu_location_id'].nunique()} zones.")
+    print(f"Đã đọc feature table: {len(df):,} row, {df['pu_location_id'].nunique()} zone.")
     return df
 
 
 def qa_check_missing(df: pd.DataFrame, expected_columns: tuple[str, ...]) -> None:
-    print("\n=== QA: MISSING VALUES ===")
+    print("\n=== QA: GIÁ TRỊ THIẾU ===")
     missing_cols = [c for c in expected_columns if c not in df.columns]
     if missing_cols:
-        raise ValueError(f"Feature table is missing required columns: {missing_cols}")
+        raise ValueError(f"Feature table thiếu column bắt buộc: {missing_cols}")
 
     na_counts = df[list(expected_columns)].isna().sum()
     na_counts = na_counts[na_counts > 0]
 
     if len(na_counts) > 0:
-        print("WARNING: missing values detected:")
+        print("CẢNH BÁO: phát hiện giá trị thiếu:")
         print(na_counts.to_string())
         raise ValueError(
-            "Feature table has missing values in required columns; check build_panel."
+            "Feature table có giá trị thiếu trong column bắt buộc; kiểm tra build_panel."
         )
-    print("No missing values in required columns.")
+    print("Không có giá trị thiếu trong column bắt buộc.")
 
 
 def qa_check_duplicate(df: pd.DataFrame) -> None:
@@ -37,28 +37,28 @@ def qa_check_duplicate(df: pd.DataFrame) -> None:
     n_dup = df.duplicated(subset=["pu_location_id", "target_datetime"]).sum()
     if n_dup > 0:
         raise ValueError(
-            f"Found {n_dup} duplicate (zone, hour) rows in the feature table."
+            f"Phát hiện {n_dup} row (zone, hour) duplicate trong feature table."
         )
-    print("No duplicate (zone, hour) rows.")
+    print("Không có row (zone, hour) duplicate.")
 
 
 def qa_check_zero_demand(df: pd.DataFrame) -> pd.Series:
-    """Report the overall and per-zone zero-demand rates."""
+    """Báo cáo zero-demand rate tổng thể và theo từng zone."""
     print("\n=== QA: ZERO-DEMAND RATE ===")
     overall_zero_rate = (df["demand"] == 0).mean()
-    print(f"Overall zero-demand rate: {overall_zero_rate:.1%}")
+    print(f"Zero-demand rate tổng thể: {overall_zero_rate:.1%}")
 
     zone_zero_rate = df.groupby("pu_location_id")["demand"].apply(lambda s: (s == 0).mean())
     high_zero_zones = zone_zero_rate[zone_zero_rate > 0.95]
 
     if len(high_zero_zones) > 0:
         print(
-            f"WARNING: {len(high_zero_zones)} zones have >95% zero-demand hours "
-            f"-- correlation may be NaN:"
+            f"CẢNH BÁO: {len(high_zero_zones)} zone có >95% zero-demand hour "
+            f"-- correlation có thể là NaN:"
         )
         print(high_zero_zones.round(3).to_string())
     else:
-        print("No zone has an unusually high zero-demand rate (>95%).")
+        print("Không có zone nào có zero-demand rate bất thường (>95%).")
 
     return zone_zero_rate
 
@@ -69,14 +69,14 @@ def compute_correlation_by_zone(
     correlation_end: pd.Timestamp,
     lag_pairs: tuple[tuple[str, str], ...],
 ) -> pd.DataFrame:
-    """Compute Pearson correlation per zone and weekly-lag pair."""
+    """Tính Pearson correlation theo zone và weekly-lag pair."""
     print(f"\n=== CORRELATION: {correlation_start} -> {correlation_end} (exclusive) ===")
 
     period_df = df[
         (df["target_datetime"] >= correlation_start)
         & (df["target_datetime"] < correlation_end)
     ]
-    print(f"Rows in the correlation period: {len(period_df):,}")
+    print(f"Số row trong correlation period: {len(period_df):,}")
 
     records = []
     n_undefined = 0
@@ -98,17 +98,17 @@ def compute_correlation_by_zone(
     corr_df = pd.DataFrame(records)
 
     n_zones = period_df["pu_location_id"].nunique()
-    print(f"Computed correlation for {n_zones} zones x {len(lag_pairs)} lag pairs.")
+    print(f"Đã tính correlation cho {n_zones} zone x {len(lag_pairs)} lag pair.")
     if n_undefined > 0:
         print(
-            f"WARNING: {n_undefined} (zone, pair) combinations have undefined correlation (NaN)."
+            f"CẢNH BÁO: {n_undefined} tổ hợp (zone, pair) có correlation không xác định (NaN)."
         )
 
     return corr_df
 
 
 def summarize_correlation(corr_df: pd.DataFrame) -> pd.DataFrame:
-    """Summarize mean, sample standard deviation, and valid Pearson counts."""
+    """Tổng hợp mean, sample standard deviation và số Pearson hợp lệ."""
     summary = (
         corr_df.groupby("pair")["pearson_r"]
         .agg(mean_r="mean", std_r="std", n_valid="count")
@@ -117,7 +117,7 @@ def summarize_correlation(corr_df: pd.DataFrame) -> pd.DataFrame:
     summary["n_zones_total"] = corr_df.groupby("pair")["pearson_r"].size().values
     summary["n_undefined"] = summary["n_zones_total"] - summary["n_valid"]
 
-    print("\n=== SUMMARY: MEAN +- SD PEARSON CORRELATION OVER 50 ZONES ===")
+    print("\n=== SUMMARY: MEAN +- SD PEARSON CORRELATION TRÊN 50 ZONE ===")
     print(summary.round(4).to_string(index=False))
 
     return summary
@@ -201,11 +201,11 @@ rebuild pre-warm-up panel.
 """
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
-    print(f"\nSaved data dictionary -> {path}")
+    print(f"\nĐã lưu data dictionary -> {path}")
 
 
 def run_analysis(config: DataConfig) -> pd.DataFrame:
-    """Run correlation QA and write results to the requested directory."""
+    """Chạy correlation QA và ghi kết quả vào directory được yêu cầu."""
     paths = config["paths"]
     panel = config["panel"]
     correlation = config["correlation"]
@@ -237,13 +237,13 @@ def run_analysis(config: DataConfig) -> pd.DataFrame:
     data_dictionary_path = paths["data_dictionary"]
     corr_df.to_csv(corr_by_zone_path, index=False)
     summary_df.to_csv(corr_summary_path, index=False)
-    print(f"\nSaved per-zone correlation -> {corr_by_zone_path}")
-    print(f"Saved correlation summary -> {corr_summary_path}")
+    print(f"\nĐã lưu correlation theo zone -> {corr_by_zone_path}")
+    print(f"Đã lưu correlation summary -> {corr_summary_path}")
 
     save_data_dictionary(data_dictionary_path)
 
     print("\n=== HANDOFF ===")
-    print("feature_table.csv passed QA and is ready for handoff.")
+    print("feature_table.csv đã qua QA và sẵn sàng handoff.")
     print(f"  - {data_dictionary_path.name}")
     print(f"  - {corr_by_zone_path.name}")
     print(f"  - {corr_summary_path.name}")
@@ -251,7 +251,7 @@ def run_analysis(config: DataConfig) -> pd.DataFrame:
 
 
 def main() -> None:
-    """Run the standard project correlation analysis."""
+    """Chạy correlation analysis chuẩn của project."""
     run_analysis(load_data_config())
 
 

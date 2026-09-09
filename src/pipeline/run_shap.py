@@ -1,4 +1,4 @@
-"""Generate stable semantic SHAP samples and per-run SHAP artifacts."""
+"""Sinh semantic SHAP sample ổn định và SHAP artifact theo từng run."""
 
 import logging
 from pathlib import Path
@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 
 
 def generate_sample_keys(fold: str, data: ModelData) -> pd.DataFrame:
-    """Select exactly 100 deterministic semantic rows for every frozen zone."""
+    """Chọn đúng 100 semantic row deterministic cho mỗi frozen zone."""
     data_config = load_data_config()
     model_config = load_model_config()
     sample_size = model_config["shap"]["zone_sample_size"]
     keys = data["evaluation_keys"].reset_index(drop=True)
     if list(keys.columns) != ["pu_location_id", "target_datetime"]:
-        raise ValueError("Evaluation keys have an unexpected schema")
+        raise ValueError("Evaluation key có schema không mong đợi")
     rng = np.random.default_rng(model_config["seed"])
     selected: list[pd.DataFrame] = []
     zone_ids = load_frozen_zone_ids(data_config)
@@ -39,26 +39,26 @@ def generate_sample_keys(fold: str, data: ModelData) -> pd.DataFrame:
         zone_rows = keys[keys["pu_location_id"] == zone_id].sort_values("target_datetime")
         if len(zone_rows) < sample_size:
             raise ValueError(
-                f"Fold {fold} zone {zone_id} has {len(zone_rows)} rows; "
-                f"exactly {sample_size} are required"
+                f"Fold {fold}, zone {zone_id} có {len(zone_rows)} row; "
+                f"bắt buộc đúng {sample_size} row"
             )
         positions = np.sort(rng.choice(len(zone_rows), size=sample_size, replace=False))
         selected.append(zone_rows.iloc[positions])
     sample_keys = pd.concat(selected, ignore_index=True)
     sample_keys.insert(0, "sample_order", np.arange(len(sample_keys), dtype=int))
     if len(sample_keys) != len(zone_ids) * sample_size:
-        raise RuntimeError(f"Fold {fold} did not produce the configured SHAP sample size")
+        raise RuntimeError(f"Fold {fold} không tạo đúng SHAP sample size theo config")
     if sample_keys[["pu_location_id", "target_datetime"]].duplicated().any():
-        raise RuntimeError(f"Fold {fold} produced duplicate semantic SHAP keys")
+        raise RuntimeError(f"Fold {fold} tạo semantic SHAP key duplicate")
     return sample_keys
 
 
 def save_sample_keys(fold: str, data: ModelData) -> Path:
-    """Write one fold's semantic SHAP sample keys without replacement."""
+    """Ghi semantic SHAP sample key của một fold mà không thay thế file hiện có."""
     config = load_data_config()
     path = config["paths"]["folds_dir"] / fold / "shap_sample_keys.csv"
     if path.exists():
-        raise FileExistsError(f"Refusing to overwrite existing artifact: {path}")
+        raise FileExistsError(f"Từ chối ghi đè artifact đã tồn tại: {path}")
     sample_keys = generate_sample_keys(fold, data)
     path.parent.mkdir(parents=True, exist_ok=True)
     sample_keys.to_csv(path, index=False)
@@ -67,22 +67,22 @@ def save_sample_keys(fold: str, data: ModelData) -> Path:
 
 
 def load_sample_keys(fold: str) -> pd.DataFrame:
-    """Read and validate one semantic SHAP sample-key artifact."""
+    """Đọc và validate một semantic SHAP sample-key artifact."""
     config = load_data_config()
     path = config["paths"]["folds_dir"] / fold / "shap_sample_keys.csv"
     if not path.is_file():
-        raise FileNotFoundError(f"SHAP sample keys not found: {path}")
+        raise FileNotFoundError(f"Không tìm thấy SHAP sample key: {path}")
     sample_keys = pd.read_csv(path, parse_dates=["target_datetime"])
     expected_columns = ["sample_order", "pu_location_id", "target_datetime"]
     if list(sample_keys.columns) != expected_columns:
-        raise ValueError(f"SHAP sample keys must contain exactly {expected_columns}")
+        raise ValueError(f"SHAP sample key phải chứa đúng {expected_columns}")
     if not sample_keys["sample_order"].eq(np.arange(len(sample_keys))).all():
-        raise ValueError(f"SHAP sample order is not contiguous: {path}")
+        raise ValueError(f"SHAP sample order không liên tục: {path}")
     return sample_keys
 
 
 def _sample_frame(data: ModelData, sample_keys: pd.DataFrame) -> pd.DataFrame:
-    """Resolve semantic keys to the ordered model feature rows."""
+    """Ánh xạ semantic key tới các model feature row theo thứ tự."""
     evaluation_keys = data["evaluation_keys"].reset_index(drop=True).reset_index()
     evaluation_keys = evaluation_keys.rename(columns={"index": "row_position"})
     joined = sample_keys.merge(
@@ -93,15 +93,15 @@ def _sample_frame(data: ModelData, sample_keys: pd.DataFrame) -> pd.DataFrame:
         validate="one_to_one",
     )
     if joined["row_position"].isna().any():
-        raise KeyError("SHAP sample contains keys absent from the evaluation fold")
+        raise KeyError("SHAP sample chứa key không có trong evaluation fold")
     positions = joined["row_position"].astype(int).tolist()
     return data["X_evaluation"].iloc[positions].reset_index(drop=True)
 
 
 def _save_bar_plot(path: Path, shap_values: shap.Explanation) -> None:
-    """Save one SHAP bar plot without replacing an existing artifact."""
+    """Lưu một SHAP bar plot mà không thay thế artifact hiện có."""
     if path.exists():
-        raise FileExistsError(f"Refusing to overwrite existing artifact: {path}")
+        raise FileExistsError(f"Từ chối ghi đè artifact đã tồn tại: {path}")
     plt.figure()
     shap.plots.bar(shap_values, show=False)
     plt.tight_layout()
@@ -111,9 +111,9 @@ def _save_bar_plot(path: Path, shap_values: shap.Explanation) -> None:
 
 
 def _save_beeswarm_plot(path: Path, shap_values: shap.Explanation) -> None:
-    """Save one SHAP beeswarm plot without replacing an existing artifact."""
+    """Lưu một SHAP beeswarm plot mà không thay thế artifact hiện có."""
     if path.exists():
-        raise FileExistsError(f"Refusing to overwrite existing artifact: {path}")
+        raise FileExistsError(f"Từ chối ghi đè artifact đã tồn tại: {path}")
     plt.figure()
     shap.plots.beeswarm(shap_values, show=False)
     plt.tight_layout()
@@ -123,11 +123,11 @@ def _save_beeswarm_plot(path: Path, shap_values: shap.Explanation) -> None:
 
 
 def run_shap(fold: str, variant: str, model_key: str, data: ModelData) -> None:
-    """Compute and persist SHAP artifacts for one trained model run."""
+    """Tính và lưu SHAP artifact cho một model run đã train."""
     data_config = load_data_config()
     model_config = load_model_config()
     if variant not in data_config["panel"]["variants"]:
-        raise ValueError(f"Unknown variant '{variant}'")
+        raise ValueError(f"Variant không xác định '{variant}'")
     model_dir = model_config["paths"]["results"] / variant / fold / model_key
     model = load_pickle_model(model_dir / "model.pkl")
     sample_keys = load_sample_keys(fold)
@@ -135,9 +135,9 @@ def run_shap(fold: str, variant: str, model_key: str, data: ModelData) -> None:
     explainer = shap.TreeExplainer(model, feature_perturbation="tree_path_dependent")
     shap_values = explainer(X_sample)
     if not isinstance(shap_values, shap.Explanation):
-        raise TypeError("TreeExplainer did not return a shap.Explanation")
+        raise TypeError("TreeExplainer không trả về shap.Explanation")
     if shap_values.values.ndim != 2 or shap_values.values.shape[1] != len(X_sample.columns):
-        raise ValueError("SHAP output shape does not match the sampled feature matrix")
+        raise ValueError("SHAP output shape không khớp sampled feature matrix")
     save_shap_values(model_dir / "shap_values.pkl", shap_values)
     _save_bar_plot(model_dir / "shap_bar.png", shap_values)
     _save_beeswarm_plot(model_dir / "shap_beeswarm.png", shap_values)
@@ -148,7 +148,7 @@ def run_shap(fold: str, variant: str, model_key: str, data: ModelData) -> None:
     ).sort_values("importance", ascending=False)
     importance_path = model_dir / "shap_importance.csv"
     if importance_path.exists():
-        raise FileExistsError(f"Refusing to overwrite existing artifact: {importance_path}")
+        raise FileExistsError(f"Từ chối ghi đè artifact đã tồn tại: {importance_path}")
     importance_frame.to_csv(importance_path, index=False)
     weekly_features = data_config["panel"]["variants"][variant]["weekly_features"]
     weekly_importance = float(
