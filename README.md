@@ -6,8 +6,8 @@ Project nghiên cứu độ ổn định của SHAP khi mô hình dự báo nhu 
 weekly lag có tương quan. Mục tiêu là so sánh cách biểu diễn weekly lag ảnh hưởng đến prediction và
 feature attribution; đây không phải hệ thống dự báo vận hành.
 
-Trong working copy hiện tại, 12 raw Parquet files của NYC TLC HVFHV năm 2025 đã được tải ở
-`data/raw/`. Khi reproduce ở máy khác, hãy đặt đủ 12 file này vào cùng đường dẫn trước khi chạy pipeline.
+Project sử dụng 12 raw Parquet files của NYC TLC HVFHV năm 2025. Bước download trong phần reproduction
+sẽ tải các file này vào `data/raw/`.
 
 ## Khái niệm chính
 
@@ -36,29 +36,37 @@ Trong working copy hiện tại, 12 raw Parquet files của NYC TLC HVFHV năm 2
 Chạy từ project root:
 
 ```bash
-# Tạo hoặc cập nhật environment.
+# Tạo Conda environment.
 conda env create -f environment.yaml
-# Nếu environment đã tồn tại, dùng lệnh này thay thế:
-# conda env update -f environment.yaml
+
+# Kích hoạt environment của project.
 conda activate shap-stability-ride-demand
 
-# Chỉ chạy nếu data/raw/ chưa có đủ 12 Parquet files.
+# Tải 12 raw NYC TLC HVFHV Parquet files năm 2025.
 python -m src.data.download_raw
 
-# Data preparation và QA.
+# Tổng hợp 12 tháng và freeze Top-50 zones từ Jan-Jun.
 python -m src.data.freeze_zones
+
+# Xây dense hourly panel và calendar/lag features.
 python -m src.data.build_panel
+
+# Tính correlation giữa các weekly lags trên 50 zones.
 python -m src.data.correlation_analysis
+
+# Tạo HPO, Fold 1-4 và final-test temporal splits.
 python -m src.data.split_folds
+
+# Kiểm tra schema, features, lag alignment, splits và leakage.
 python -m src.data.qa_checks
 
-# HPO, baseline/tuned comparison, 30 core runs, SHAP và artifact QA.
+# Chạy HPO, baseline/tuned comparison, 30 core runs, SHAP và Pipeline QA.
 python run.py all
 
-# Bảng, hình và báo cáo tổng hợp.
+# Tạo summary tables, plots và technical report.
 python -m src.analysis.run_stats
 
-# Pipeline contract tests.
+# Chạy Pipeline contract tests.
 python -m unittest src.test.test_pipeline
 ```
 
@@ -72,7 +80,10 @@ Các output chính nằm ở `data/processed/`, `data/folds/`, `results/` và
 Chạy sau khi toàn bộ experiment và analysis đã hoàn tất:
 
 ```bash
+# Tạo GeoJSON cho 50 frozen zones.
 python -m src.dashboard.build_zone_geojson
+
+# Khởi chạy interactive Dashboard.
 streamlit run dashboard_app.py
 ```
 
