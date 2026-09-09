@@ -183,8 +183,9 @@ python run.py summarize
 ```
 
 `check-matrix` phải pass trước khi Analysis đọc `results/stats/`. Core summary chỉ
-bao gồm các metric được proposal phê duyệt; CV, rank, paired comparison, significance
-tests và các diagnostic khác là follow-up riêng, không được tự động thêm vào core.
+bao gồm MAE, RMSE, WAPE, correlation, SHAP feature importance và weekly-group importance
+được định nghĩa trong protocol; CV, rank, paired comparison, significance tests và các
+diagnostic khác là follow-up riêng, không được tự động thêm vào core.
 
 Data role chỉ chuẩn bị/kiểm tra data. Pipeline role không thay đổi raw data, không
 tune ngoài Variant A/HPO split và không đưa December `final_test` vào fold1-4 stability
