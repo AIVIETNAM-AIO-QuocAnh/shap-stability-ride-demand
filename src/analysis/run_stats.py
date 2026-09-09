@@ -1,6 +1,6 @@
-"""Tổng hợp kết quả core experiment: CHỈ các chỉ số được nêu trong m03-proposal.pdf.
+"""Tổng hợp kết quả core experiment theo protocol của project.
 
-Phạm vi được proposal quy định:
+Phạm vi core gồm:
 
 - Mục 2.5, prediction metric: MAE, RMSE, WAPE trên toàn bộ evaluation rows của từng fold;
   báo cáo mean ± sample standard deviation qua Fold 1-4; final test tháng 12 báo cáo riêng,
@@ -10,9 +10,9 @@ Phạm vi được proposal quy định:
 - Mục 2.6, weekly group: I_weekly,f = tổng I_{j,f} của các weekly feature trong variant;
   cũng báo cáo mean ± sample standard deviation qua Fold 1-4.
 
-Proposal mục 2.6 ghi rõ: *"Không dùng coefficient of variation hoặc significance test trong
-core scope"*, và mục 6 ghi *"Không cần thêm model, dataset, statistical test, deployment hoặc
-experiment ngoài phạm vi trên"*. Vì vậy module này KHÔNG tính: coefficient of variation,
+Protocol quy định không dùng coefficient of variation hoặc significance test trong core scope
+và không mở rộng core experiment ngoài data, model, metric, split và SHAP settings đã khóa. Vì
+vậy module này KHÔNG tính: coefficient of variation,
 rank/Spearman stability, paired comparison với standard error, z-score của final test,
 trend/confound check, và sensitivity của công thức group importance.
 """
@@ -44,16 +44,15 @@ class RunStats:
         with open(self.variant_map_file, "r") as f:
             self.variant_map = json.load(f)
 
-        # Proposal mục 2.5/2.6: final_test báo cáo riêng, không gộp vào mean/std qua fold.
+        # Protocol: final_test báo cáo riêng, không gộp vào mean/std qua fold.
         self.final_test_fold = "final_test"
         self.cv_folds = tuple(fold for fold in self.folds if fold != self.final_test_fold)
 
     def load_correlation_summary(self):
         """Pearson correlation của ba cặp weekly lag, tổng hợp trên 50 zone.
 
-        Proposal mục 2.2 quy định báo cáo mean và standard deviation của hệ số correlation
-        trên 50 zone. Bảng do tầng Data sinh ra, ở đây chỉ đọc lại để `summary.md` trả lời
-        được cả ba tiêu chí hoàn thành ở mục 6 thay vì chỉ trỏ sang file khác.
+        Bảng do tầng Data sinh ra; Analysis chỉ đọc lại để `summary.md` có đủ correlation
+        evidence cùng với prediction và SHAP results.
         """
         path = data_cfg["paths"]["correlation_summary"]
         if not path.is_file():
@@ -117,7 +116,7 @@ class RunStats:
         return shap_long_df
 
     def compute_performance_summary(self, metrics_df):
-        """Proposal mục 2.5: mean ± sample std qua Fold 1-4, final test tách riêng."""
+        """Tính mean ± sample std qua Fold 1-4 và tách riêng final test."""
         cv_metrics_df = metrics_df[metrics_df["fold"] != self.final_test_fold]
 
         performance_aggregated_df = (
@@ -140,7 +139,7 @@ class RunStats:
         return performance_aggregated_df
 
     def compute_feature_stability(self, shap_long_df):
-        """Proposal mục 2.6: mean và sample standard deviation của I_{j,f} qua Fold 1-4."""
+        """Tính mean và sample standard deviation của I_{j,f} qua Fold 1-4."""
         cv_shap_df = shap_long_df[shap_long_df["fold"] != self.final_test_fold]
 
         feature_stability_df = (
@@ -160,7 +159,7 @@ class RunStats:
         return feature_stability_df
 
     def compute_group_stability(self):
-        """Proposal mục 2.6: weekly-group importance, mean ± sample std qua Fold 1-4."""
+        """Tính weekly-group importance, mean ± sample std qua Fold 1-4."""
         group_importance = []
 
         for variant in self.variants:
@@ -196,7 +195,7 @@ class RunStats:
         return group_stability_df
 
     def plot_feature_trends(self, shap_long_df):
-        """Hình minh hoạ I_{j,f} theo từng fold (proposal mục 5.3: trả lời RQ bằng bảng/hình)."""
+        """Vẽ I_{j,f} theo từng fold để hỗ trợ đọc kết quả trong bảng và summary."""
         saved_paths = []
         for variant in self.variants:
             variant_df = shap_long_df[shap_long_df["variant"] == variant]
@@ -245,27 +244,26 @@ class RunStats:
         lines = ["# Kết quả tổng hợp: prediction performance & SHAP stability", ""]
 
         lines.append(
-            "> **Phạm vi báo cáo theo proposal.** Mục 2.5/2.6 quy định số liệu là **mean ± sample "
+            "> **Phạm vi báo cáo theo protocol.** Số liệu là **mean ± sample "
             f"standard deviation** qua {n_cv_folds} fold; `final_test` (tháng 12) báo cáo riêng, không "
-            "gộp vào mean/std. Proposal mục 2.6 ghi rõ *\"Không dùng coefficient of variation hoặc "
-            "significance test trong core scope\"*, và mục 6 ghi *\"Không cần thêm model, dataset, "
-            "statistical test, deployment hoặc experiment ngoài phạm vi trên\"*. Vì vậy báo cáo này "
+            "gộp vào mean/std. Core không dùng coefficient of variation hoặc significance test và "
+            "không mở rộng ngoài data, model, metric, split và SHAP settings đã khóa. Vì vậy báo cáo này "
             "**chỉ** gồm các chỉ số trên, không kèm CV, rank stability, paired standard error hay "
             "z-score."
         )
         lines.append("")
         lines.append(
-            "> **Cách đọc standard deviation (proposal mục 2.6):** std được diễn giải **cùng với** "
+            "> **Cách đọc standard deviation:** std được diễn giải **cùng với** "
             "mean importance. Không kết luận một feature \"ổn định hơn\" chỉ dựa vào std khi mức mean "
             "importance khác nhau quá lớn."
         )
         lines.append("")
 
-        lines.append("## 1. Tương quan giữa ba weekly lag (proposal mục 2.2)")
+        lines.append("## 1. Tương quan giữa ba weekly lag")
         lines.append("")
         lines.append(
-            "Pearson correlation tính theo từng zone trên 50 frozen zone. Proposal mục 2.2 chủ ý "
-            "không đặt trước ngưỡng để gọi là \"cao\"; giá trị quan sát được quyết định mức độ "
+            "Pearson correlation tính theo từng zone trên 50 frozen zone. Protocol không đặt trước "
+            "ngưỡng để gọi là \"cao\"; giá trị quan sát được quyết định mức độ "
             "mạnh của kết luận."
         )
         lines.append("")
@@ -286,7 +284,7 @@ class RunStats:
         lines.append(f"## 2. Prediction performance (mean ± std qua {n_cv_folds} fold)")
         lines.append("")
         lines.append(
-            "Proposal mục 2.5: MAE là metric chính; RMSE và WAPE là metric bổ sung. WAPE tính theo "
+            "MAE là metric chính; RMSE và WAPE là metric bổ sung. WAPE tính theo "
             "phần trăm."
         )
         lines.append("")
@@ -318,7 +316,7 @@ class RunStats:
         lines.append(f"## 3. SHAP feature-level importance (mean ± std qua {n_cv_folds} fold)")
         lines.append("")
         lines.append(
-            "Proposal mục 2.6: `I_{j,f}` = mean |phi| của feature j trên 5.000 sample row của fold f. "
+            "Protocol định nghĩa `I_{j,f}` = mean |phi| của feature j trên 5.000 sample row của fold f. "
             "Bảng dưới là mean và sample standard deviation của `I_{j,f}` qua các fold, kèm cột "
             "final_test tách riêng."
         )
@@ -337,7 +335,7 @@ class RunStats:
             f"[{lowest_mean_row['variant']}/{lowest_mean_row['model']}] tới "
             f"**{highest_mean_row['mean_importance']:.2f}** ở `{highest_mean_row['feature']}` "
             f"[{highest_mean_row['variant']}/{highest_mean_row['model']}]), nên **không** so std trực "
-            "tiếp giữa chúng để xếp hạng độ ổn định, đúng cảnh báo proposal mục 2.6."
+            "tiếp giữa chúng để xếp hạng độ ổn định, đúng quy ước đọc kết quả của project."
         )
         lines.append("")
 
@@ -345,7 +343,7 @@ class RunStats:
         lines.append("")
         group_sizes = {v: len(self.variant_map["variants"][v]["weekly_features"]) for v in self.variants}
         lines.append(
-            "Proposal mục 2.6 định nghĩa `I_weekly,f` là tổng `I_{j,f}` của các weekly feature trong "
+            "Protocol định nghĩa `I_weekly,f` là tổng `I_{j,f}` của các weekly feature trong "
             "variant: "
             + "; ".join(
                 f"**{variant}** = "
@@ -376,7 +374,7 @@ class RunStats:
         )
         lines.append("")
 
-        lines.append("## 5. Trả lời tiêu chí hoàn thành (proposal mục 6)")
+        lines.append("## 5. Trả lời câu hỏi nghiên cứu")
         lines.append("")
 
         lines.append(
@@ -475,8 +473,8 @@ class RunStats:
 
         lines.append(
             "- **Mức độ mạnh của kết luận:** chênh lệch mean MAE giữa các variant nhỏ hơn nhiều so "
-            f"với std qua fold (tối đa {max_mae_std:.3f}). Proposal không cho phép dùng significance "
-            "test trong core scope, nên phát biểu dừng ở mức **mô tả**: gộp weekly lag không làm hại "
+            f"với std qua fold (tối đa {max_mae_std:.3f}). Core không dùng significance "
+            "test, nên phát biểu dừng ở mức **mô tả**: gộp weekly lag không làm hại "
             "prediction, và hướng thay đổi "
             + (
                 "nhất quán giữa hai model."
@@ -491,7 +489,7 @@ class RunStats:
         lines.append(
             "- **Về explanation stability:** so sánh weekly-group std giữa các variant bị lẫn confound "
             "định nghĩa metric (mục 3), còn so sánh feature-level std giữa các feature có mean chênh "
-            "lệch lớn thì proposal mục 2.6 đã cảnh báo không được làm. Trong phạm vi core scope, số "
+            "lệch lớn thì không được dùng std đơn độc để xếp hạng stability. Trong phạm vi core scope, số "
             "liệu mean ± std ở mục 2 và 3 là kết quả báo cáo được; kết luận mạnh hơn cần thước đo nằm "
             "ngoài spec hiện tại."
         )
@@ -499,13 +497,13 @@ class RunStats:
 
         lines.append("## Chi tiết file")
         lines.append("")
-        lines.append("- `performance_summary.csv`: MAE/RMSE/WAPE theo từng fold (proposal mục 2.5).")
+        lines.append("- `performance_summary.csv`: MAE/RMSE/WAPE theo từng fold.")
         lines.append("- `performance_aggregated.csv`: MAE/RMSE/WAPE mean ± std qua Fold 1-4 + cột final_test.")
-        lines.append("- `shap_importance_per_fold.csv`: `I_{j,f}` của weekly feature theo từng fold (proposal mục 2.6).")
+        lines.append("- `shap_importance_per_fold.csv`: `I_{j,f}` của weekly feature theo từng fold.")
         lines.append("- `feature_importance_stability.csv`: mean ± std của `I_{j,f}` qua Fold 1-4 + cột final_test.")
         lines.append("- `weekly_group_per_fold.csv`: weekly-group importance theo từng fold.")
         lines.append("- `weekly_group_stability.csv`: weekly-group importance mean ± std + cột final_test.")
-        lines.append("- `hpo_comparison.csv`: baseline vs tuned trên HPO split (proposal mục 3.2).")
+        lines.append("- `hpo_comparison.csv`: baseline vs tuned trên HPO split.")
         lines.append("- `plots/{variant}_feature_trend.png`: `I_{j,f}` của từng weekly feature qua các fold.")
         lines.append("")
         lines.append(

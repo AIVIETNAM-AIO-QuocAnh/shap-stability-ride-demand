@@ -1,12 +1,12 @@
 # Kết quả tổng hợp: prediction performance & SHAP stability
 
-> **Phạm vi báo cáo theo proposal.** Mục 2.5/2.6 quy định số liệu là **mean ± sample standard deviation** qua 4 fold; `final_test` (tháng 12) báo cáo riêng, không gộp vào mean/std. Proposal mục 2.6 ghi rõ *"Không dùng coefficient of variation hoặc significance test trong core scope"*, và mục 6 ghi *"Không cần thêm model, dataset, statistical test, deployment hoặc experiment ngoài phạm vi trên"*. Vì vậy báo cáo này **chỉ** gồm các chỉ số trên, không kèm CV, rank stability, paired standard error hay z-score.
+> **Phạm vi báo cáo theo protocol.** Số liệu là **mean ± sample standard deviation** qua 4 fold; `final_test` (tháng 12) báo cáo riêng, không gộp vào mean/std. Core không dùng coefficient of variation hoặc significance test và không mở rộng ngoài data, model, metric, split và SHAP settings đã khóa. Vì vậy báo cáo này **chỉ** gồm các chỉ số trên, không kèm CV, rank stability, paired standard error hay z-score.
 
-> **Cách đọc standard deviation (proposal mục 2.6):** std được diễn giải **cùng với** mean importance. Không kết luận một feature "ổn định hơn" chỉ dựa vào std khi mức mean importance khác nhau quá lớn.
+> **Cách đọc standard deviation:** std được diễn giải **cùng với** mean importance. Không kết luận một feature "ổn định hơn" chỉ dựa vào std khi mức mean importance khác nhau quá lớn.
 
-## 1. Tương quan giữa ba weekly lag (proposal mục 2.2)
+## 1. Tương quan giữa ba weekly lag
 
-Pearson correlation tính theo từng zone trên 50 frozen zone. Proposal mục 2.2 chủ ý không đặt trước ngưỡng để gọi là "cao"; giá trị quan sát được quyết định mức độ mạnh của kết luận.
+Pearson correlation tính theo từng zone trên 50 frozen zone. Protocol không đặt trước ngưỡng để gọi là "cao"; giá trị quan sát được quyết định mức độ mạnh của kết luận.
 
 | cặp lag | mean r | std r | n zone |
 | --- | --- | --- | --- |
@@ -18,7 +18,7 @@ Pearson correlation tính theo từng zone trên 50 frozen zone. Proposal mục 
 
 ## 2. Prediction performance (mean ± std qua 4 fold)
 
-Proposal mục 2.5: MAE là metric chính; RMSE và WAPE là metric bổ sung. WAPE tính theo phần trăm.
+MAE là metric chính; RMSE và WAPE là metric bổ sung. WAPE tính theo phần trăm.
 
 | variant | model | mae_mean | mae_std | mae_final_test | rmse_mean | rmse_std | rmse_final_test | wape_mean | wape_std | wape_final_test |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -34,7 +34,7 @@ Proposal mục 2.5: MAE là metric chính; RMSE và WAPE là metric bổ sung. W
 
 ## 3. SHAP feature-level importance (mean ± std qua 4 fold)
 
-Proposal mục 2.6: `I_{j,f}` = mean |phi| của feature j trên 5.000 sample row của fold f. Bảng dưới là mean và sample standard deviation của `I_{j,f}` qua các fold, kèm cột final_test tách riêng.
+Protocol định nghĩa `I_{j,f}` = mean |phi| của feature j trên 5.000 sample row của fold f. Bảng dưới là mean và sample standard deviation của `I_{j,f}` qua các fold, kèm cột final_test tách riêng.
 
 | variant | model | feature | mean_importance | std_importance | importance_final_test |
 | --- | --- | --- | --- | --- | --- |
@@ -51,11 +51,11 @@ Proposal mục 2.6: `I_{j,f}` = mean |phi| của feature j trên 5.000 sample ro
 | C | xgboost | lag_168 | 4.8993 | 0.5145 | 5.2161 |
 | C | xgboost | median_lag_3w | 54.7119 | 1.9939 | 52.0773 |
 
-- Mean importance giữa các feature chênh nhau rất lớn (từ **4.90** ở `lag_168` [C/xgboost] tới **54.71** ở `median_lag_3w` [C/xgboost]), nên **không** so std trực tiếp giữa chúng để xếp hạng độ ổn định, đúng cảnh báo proposal mục 2.6.
+- Mean importance giữa các feature chênh nhau rất lớn (từ **4.90** ở `lag_168` [C/xgboost] tới **54.71** ở `median_lag_3w` [C/xgboost]), nên **không** so std trực tiếp giữa chúng để xếp hạng độ ổn định, đúng quy ước đọc kết quả của project.
 
 ## 4. Weekly-group importance (mean ± std qua 4 fold)
 
-Proposal mục 2.6 định nghĩa `I_weekly,f` là tổng `I_{j,f}` của các weekly feature trong variant: **A** = `lag_168` + `lag_336` + `lag_504`; **B** = `median_lag_3w`; **C** = `lag_168` + `median_lag_3w`.
+Protocol định nghĩa `I_weekly,f` là tổng `I_{j,f}` của các weekly feature trong variant: **A** = `lag_168` + `lag_336` + `lag_504`; **B** = `median_lag_3w`; **C** = `lag_168` + `median_lag_3w`.
 
 | variant | model | mean_group_importance | std_group_importance | group_importance_final_test |
 | --- | --- | --- | --- | --- |
@@ -68,7 +68,7 @@ Proposal mục 2.6 định nghĩa `I_weekly,f` là tổng `I_{j,f}` của các w
 
 - **Cảnh báo so sánh:** số feature trong nhóm khác nhau giữa các variant (A=3, B=1, C=2). Với variant B nhóm chỉ có 1 feature nên **group importance ≡ feature importance**. Chênh lệch giữa các variant ở bảng này một phần đến từ **định nghĩa metric** (tổng trên số feature khác nhau), chưa thể quy hết cho hành vi model.
 
-## 5. Trả lời tiêu chí hoàn thành (proposal mục 6)
+## 5. Trả lời câu hỏi nghiên cứu
 
 **Câu hỏi 1: ba weekly lag tương quan tới đâu và có đồng nhất giữa các zone không?** mean r **0.89** tới **0.91**, std r tối đa **0.024** trên 50 zone (chi tiết ở mục 1).
 
@@ -96,18 +96,18 @@ Proposal mục 2.6 định nghĩa `I_weekly,f` là tổng `I_{j,f}` của các w
 - **Tính nhất quán giữa hai model (variant B):** mean MAE giảm ở **cả LightGBM và XGBoost** (xgboost -0.7%, lightgbm -1.1%).
 - **Tính nhất quán giữa hai model (variant C):** mean MAE giảm ở **cả LightGBM và XGBoost** (xgboost -0.4%, lightgbm -0.7%).
 
-- **Mức độ mạnh của kết luận:** chênh lệch mean MAE giữa các variant nhỏ hơn nhiều so với std qua fold (tối đa 2.867). Proposal không cho phép dùng significance test trong core scope, nên phát biểu dừng ở mức **mô tả**: gộp weekly lag không làm hại prediction, và hướng thay đổi nhất quán giữa hai model.
-- **Về explanation stability:** so sánh weekly-group std giữa các variant bị lẫn confound định nghĩa metric (mục 3), còn so sánh feature-level std giữa các feature có mean chênh lệch lớn thì proposal mục 2.6 đã cảnh báo không được làm. Trong phạm vi core scope, số liệu mean ± std ở mục 2 và 3 là kết quả báo cáo được; kết luận mạnh hơn cần thước đo nằm ngoài spec hiện tại.
+- **Mức độ mạnh của kết luận:** chênh lệch mean MAE giữa các variant nhỏ hơn nhiều so với std qua fold (tối đa 2.867). Core không dùng significance test, nên phát biểu dừng ở mức **mô tả**: gộp weekly lag không làm hại prediction, và hướng thay đổi nhất quán giữa hai model.
+- **Về explanation stability:** so sánh weekly-group std giữa các variant bị lẫn confound định nghĩa metric (mục 3), còn so sánh feature-level std giữa các feature có mean chênh lệch lớn thì không được dùng std đơn độc để xếp hạng stability. Trong phạm vi core scope, số liệu mean ± std ở mục 2 và 3 là kết quả báo cáo được; kết luận mạnh hơn cần thước đo nằm ngoài spec hiện tại.
 
 ## Chi tiết file
 
-- `performance_summary.csv`: MAE/RMSE/WAPE theo từng fold (proposal mục 2.5).
+- `performance_summary.csv`: MAE/RMSE/WAPE theo từng fold.
 - `performance_aggregated.csv`: MAE/RMSE/WAPE mean ± std qua Fold 1-4 + cột final_test.
-- `shap_importance_per_fold.csv`: `I_{j,f}` của weekly feature theo từng fold (proposal mục 2.6).
+- `shap_importance_per_fold.csv`: `I_{j,f}` của weekly feature theo từng fold.
 - `feature_importance_stability.csv`: mean ± std của `I_{j,f}` qua Fold 1-4 + cột final_test.
 - `weekly_group_per_fold.csv`: weekly-group importance theo từng fold.
 - `weekly_group_stability.csv`: weekly-group importance mean ± std + cột final_test.
-- `hpo_comparison.csv`: baseline vs tuned trên HPO split (proposal mục 3.2).
+- `hpo_comparison.csv`: baseline vs tuned trên HPO split.
 - `plots/{variant}_feature_trend.png`: `I_{j,f}` của từng weekly feature qua các fold.
 
 Correlation ở mục 1 do tầng Data sinh ra, module này chỉ đọc lại: `data/processed/correlation_summary.csv` và `correlation_by_zone.csv`.
