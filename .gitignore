@@ -13,3 +13,21 @@ venv/
 
 # Raw HVFHV 2025 dataset
 data/raw/
+
+# Generated data products
+data/folds/
+data/processed/monthly_agg/
+data/processed/feature_table.csv
+data/processed/variant_feature_map.json
+data/processed/lag_alignment_examples.csv
+data/processed/correlation_by_zone.csv
+data/processed/correlation_summary.csv
+
+# Generated experiment outputs
+results/*
+!results/stats/
+results/stats/*
+!results/stats/summary.md
+
+# Generated dashboard data
+src/dashboard/zones_50.geojson
