@@ -3,7 +3,7 @@
 Chỉ đọc lại artifact trong `results/stats/` và `data/processed/` do pipeline sinh ra,
 không tính lại chỉ số nào, nên số trên trang này luôn khớp báo cáo.
 
-Chỉ trình bày các chỉ số **proposal quy định** (mục 2.2, 2.5, 2.6, 3.2): correlation,
+Chỉ trình bày các chỉ số **core protocol quy định**: correlation,
 MAE/RMSE/WAPE mean ± std, SHAP importance mean ± std, weekly-group importance,
 baseline vs tuned. Không có coefficient of variation, rank stability hay significance
 test, đúng như phần Phạm vi báo cáo của README.
@@ -38,7 +38,7 @@ def _section_correlation() -> None:
     st.subheader("1. Correlation between the three weekly lags")
     st.caption(
         "Pearson correlation computed per zone across the 50 frozen zones "
-        "(proposal section 2.2). Source: `data/processed/correlation_summary.csv`."
+        "Source: `data/processed/correlation_summary.csv`."
     )
     correlation = load_correlation_summary().copy()
     correlation["pair"] = correlation["pair"].str.replace("_vs_", " x ", regex=False)
@@ -77,7 +77,7 @@ def _section_feature_importance() -> None:
     st.subheader("2. SHAP feature importance, mean ± std over folds 1 to 4")
     st.caption(
         "`I(j,f)` is the mean absolute SHAP value of feature j on the 5,000 sampled rows of "
-        "fold f (proposal section 2.6). December `final_test` is reported separately and is "
+        "fold f. December `final_test` is reported separately and is "
         "never folded into the mean or the standard deviation."
     )
     stability = load_stats_table("feature_importance_stability")
@@ -131,7 +131,7 @@ def _section_feature_importance() -> None:
         f"**{lowest['mean_importance']:.2f}** (`{lowest['feature']}` in "
         f"{lowest['variant']}/{lowest['model']}) to **{highest['mean_importance']:.2f}** "
         f"(`{highest['feature']}` in {highest['variant']}/{highest['model']}), a factor of "
-        f"**{ratio:.1f}**. Proposal section 2.6 warns against ranking stability by standard "
+        f"**{ratio:.1f}**. The core protocol warns against ranking stability by standard "
         "deviation alone when the means differ this much, so no variant is declared more stable "
         "at the feature level."
     )
@@ -214,7 +214,7 @@ def _section_performance() -> None:
     st.subheader("4. Prediction performance, mean ± std over folds 1 to 4")
     st.caption(
         "MAE is the primary metric; RMSE and WAPE are supporting metrics and WAPE is a "
-        "percentage (proposal section 2.5). December `final_test` is reported separately."
+        "percentage. December `final_test` is reported separately."
     )
     performance = load_stats_table("performance_aggregated")
     metric = st.segmented_control(
@@ -295,7 +295,7 @@ def _section_performance() -> None:
 
 
 def _section_hpo() -> None:
-    """Tác động của tuning trên HPO split (proposal mục 3.2)."""
+    """Tác động của tuning trên HPO split."""
     st.subheader("5. Baseline versus tuned on the HPO split")
     st.caption(
         "Twenty Optuna trials per model on variant A over July 2025, then the best "
@@ -337,10 +337,10 @@ def render() -> None:
     """Dựng trang Experiment. Trang này là báo cáo nên cho phép cuộn."""
     st.title("Experiment comparison")
     st.caption(
-        "Only the metrics the proposal specifies: correlation (2.2), MAE/RMSE/WAPE mean ± std "
-        "(2.5), SHAP importance and weekly-group importance mean ± std (2.6), and baseline "
-        "versus tuned (3.2). No coefficient of variation, rank stability or significance test, "
-        "since section 2.6 rules them out of the core scope. Every number is read back from "
+        "Only the metrics in the core protocol: correlation, MAE/RMSE/WAPE mean ± std, SHAP "
+        "importance and weekly-group importance mean ± std, and baseline versus tuned. No "
+        "coefficient of variation, rank stability or significance test is included. Every number "
+        "is read back from "
         "`results/stats/`, nothing is recomputed here."
     )
     roles = " · ".join(f"**{name}** {role}" for name, role in VARIANT_ROLES.items())

@@ -146,7 +146,7 @@ def load_stats_table(name: str) -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def load_correlation_summary() -> pd.DataFrame:
-    """Pearson correlation giữa ba weekly lag, tổng hợp trên 50 zone (proposal mục 2.2)."""
+    """Pearson correlation giữa ba weekly lag, tổng hợp trên 50 zone."""
     path = load_data_config()["paths"]["correlation_summary"]
     if not path.is_file():
         raise FileNotFoundError(f"Không tìm thấy {path}")
@@ -226,7 +226,7 @@ def filter_predictions(
 def compute_metrics(frame: pd.DataFrame) -> dict[str, float | None]:
     """Tính MAE, RMSE, WAPE bằng đúng hàm của `src/pipeline/metrics.py`.
 
-    Bộ metric theo proposal mục 2.5; WAPE trả về phần trăm. Trả về None cho WAPE khi
+    Bộ metric theo core protocol; WAPE trả về phần trăm. Trả về None cho WAPE khi
     tổng demand thực bằng 0, vì lúc đó WAPE không xác định.
     """
     if frame.empty:

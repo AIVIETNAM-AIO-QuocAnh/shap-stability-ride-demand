@@ -1,7 +1,7 @@
 # Module Dashboard: visualize dự báo demand theo zone và giờ
 
 Dashboard Streamlit đọc lại prediction artifact trong `results/`. Không train lại, không sửa gì
-trong core pipeline. Đây là công cụ trình bày, nằm **ngoài core scope** của `m03-proposal.pdf`.
+trong core pipeline. Đây là công cụ trình bày, nằm **ngoài core scope** của thí nghiệm.
 
 ## Cách chạy
 
@@ -210,9 +210,9 @@ Chỉ đọc lại `results/stats/` và `data/processed/correlation_summary.csv`
 nào, nên số trên trang luôn khớp báo cáo. Đã kiểm: MAE mean, SHAP mean và correlation trên trang
 khớp từng chữ số với file gốc.
 
-Năm mục bám đúng cấu trúc README:
+Năm mục bám đúng cấu trúc báo cáo:
 
-1. Correlation giữa ba weekly lag (proposal mục 2.2)
+1. Correlation giữa ba weekly lag
 2. SHAP feature importance mean ± std qua Fold 1-4, kèm hình xu hướng theo fold (mục 2.6)
 3. Weekly-group importance mean ± std (mục 2.6)
 4. MAE/RMSE/WAPE mean ± std, chọn được metric, kèm bảng chênh lệch so với baseline A (mục 2.5)
