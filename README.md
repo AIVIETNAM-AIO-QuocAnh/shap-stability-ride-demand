@@ -31,6 +31,25 @@ sẽ tải các file này vào `data/raw/`.
 | Metrics | MAE, RMSE, WAPE (%) |
 | SHAP | `TreeExplainer`, `tree_path_dependent`, 100 rows/zone/fold |
 
+## Kết quả chính
+
+Kết quả dưới đây lấy từ core experiment đã validate; báo cáo kỹ thuật chứa bảng số liệu đầy đủ.
+
+- **Tương quan:** ba weekly lags có mean Pearson `r` khoảng **0.89–0.91** trên 50 zones.
+- **Dự báo:** A/B/C cho forecasting performance gần nhau; spread mean MAE chỉ khoảng **0.350**, nhỏ hơn nhiều so với fold-to-fold standard deviation tối đa **2.867**.
+- **Giải thích:** feature-level SHAP credit thay đổi rõ hơn prediction; ở Variant C, credit chuyển mạnh sang `median_lag_3w` và phần của `lag_168` giảm rõ.
+- **Nhóm weekly:** aggregation không làm weekly-group SHAP variability giảm nhất quán; group sizes khác nhau giữa A/B/C nên không xếp hạng stability trực tiếp bằng bảng này.
+
+![Tương quan và SHAP feature importance](assets/results-experiment-top.png)
+
+*Tương quan vẫn cao trong khi SHAP credit chuyển giữa các lag feature.*
+
+![Weekly-group importance và prediction performance](assets/results-experiment-bottom.png)
+
+*Prediction gần nhau giữa các variants, còn weekly-group variability không giảm nhất quán.*
+
+> **Kết luận chính:** Độ bền vững của dự báo không đồng nghĩa với tính bất biến của giải thích (predictive robustness ≠ explanation invariance).
+
 ## Tái lập toàn bộ experiment
 
 Chạy từ project root:
@@ -70,10 +89,9 @@ python -m src.analysis.run_stats
 python -m unittest src.test.test_pipeline
 ```
 
-Các output chính nằm ở `data/processed/`, `data/folds/`, `results/` và
-`src/dashboard/zones_50.geojson`.
+Các output chính nằm ở `data/processed/`, `data/folds/` và `results/`.
 
- **Lưu ý:** Do khác biệt về phần cứng và hệ điều hành, kết quả reproduce có thể có chênh lệch số nhỏ trong phạm vi chấp nhận được.
+> **Lưu ý về reproducibility:** Do khác biệt về phần cứng, hệ điều hành và phiên bản thư viện, kết quả chạy lại có thể có chênh lệch số nhỏ trong phạm vi chấp nhận được; xu hướng và kết luận chính được kỳ vọng nhất quán.
 
 ## Dashboard
 
@@ -91,7 +109,11 @@ Trang **Forecast** hiển thị forecast/actual/error theo zone và hour. Trang 
 correlation, prediction metrics, SHAP importance và weekly-group importance. Xem thêm
 [Dashboard README](src/dashboard/README.md).
 
-## Kết quả và tài liệu
+![Forecast dashboard](assets/dashboard-forecast.png)
+
+*Forecast page: inspect demand, prediction and error by zone and hour.*
+
+## Tài liệu chi tiết
 
 - [Báo cáo kỹ thuật](results/stats/summary.md): số liệu và kết luận chính.
 - [Data README](src/data/README.md): raw data, feature table, folds và Data QA.
