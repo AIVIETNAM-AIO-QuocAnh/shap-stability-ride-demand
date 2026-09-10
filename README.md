@@ -50,6 +50,16 @@ Kết quả dưới đây lấy từ core experiment đã validate; báo cáo k�
 
 > **Kết luận chính:** Độ bền vững của dự báo không đồng nghĩa với tính bất biến của giải thích (predictive robustness ≠ explanation invariance).
 
+## QA Review
+
+Core experiment đã được review độc lập trên toàn bộ 30 runs:
+
+- **Prediction metrics:** 30/30 recalculations **PASS**.
+- **SHAP importance:** 30/30 recalculations **PASS**; SHAP sampling dùng **5,000 rows/run**, với feature counts A = 58, B = 56 và C = 57.
+- Không phát hiện inconsistency nào làm thay đổi các kết luận chính.
+
+Xem [báo cáo QA Review](docs/qa_review_summary.md) để biết phạm vi và bằng chứng kiểm tra.
+
 ## Tái lập toàn bộ experiment
 
 Chạy từ project root:
